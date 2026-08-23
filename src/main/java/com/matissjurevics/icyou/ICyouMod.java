@@ -25,24 +25,35 @@ public class ICyouMod implements ModInitializer {
     public static final String MOD_ID = "icyou";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-    // The custom block for this mod.
+    // The custom blocks for this mod.
     public static final Block ICY_BLOCK = new IcyBlock(
             Block.Settings.create()
                     .strength(2.0f, 2.0f)
     );
 
+    public static final Block GLACIER_BLOCK = new GlacierBlock(
+            Block.Settings.create()
+                    .strength(2.5f, 3.0f)
+    );
+
     @Override
     public void onInitialize() {
-        // --- Register the block ---
+        // --- Register the blocks ---
         Registry.register(Registries.BLOCK, Identifier.of(MOD_ID, "icy_block"), ICY_BLOCK);
+        Registry.register(Registries.BLOCK, Identifier.of(MOD_ID, "glacier_block"), GLACIER_BLOCK);
 
-        // --- Register the block's item ---
+        // --- Register the blocks' items ---
         Registry.register(Registries.ITEM, Identifier.of(MOD_ID, "icy_block"),
                 new BlockItem(ICY_BLOCK, new Item.Settings()));
+        Registry.register(Registries.ITEM, Identifier.of(MOD_ID, "glacier_block"),
+                new BlockItem(GLACIER_BLOCK, new Item.Settings()));
 
-        // --- Add the block to the Building Blocks creative tab ---
+        // --- Add the blocks to the Building Blocks creative tab ---
         ItemGroupEvents.modifyEntriesEvent(ItemGroups.BUILDING_BLOCKS)
-                .register(entries -> entries.add(ICY_BLOCK));
+                .register(entries -> {
+                    entries.add(ICY_BLOCK);
+                    entries.add(GLACIER_BLOCK);
+                });
 
         // --- Register the test command: /ictest ---
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
