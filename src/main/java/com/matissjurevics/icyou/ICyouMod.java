@@ -39,7 +39,7 @@ public class ICyouMod implements ModInitializer {
     );
 
     // Security/devices (no functionality yet).
-    public static final Block CAMERA_BLOCK = new Block(
+    public static final Block CAMERA_BLOCK = new CameraBlock(
             Block.Settings.create().strength(2.0f, 2.0f));
     public static final Block CAMERA_TERMINAL_BLOCK = new Block(
             Block.Settings.create().strength(2.0f, 2.0f));

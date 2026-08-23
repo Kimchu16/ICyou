@@ -1,6 +1,83 @@
 {
-    "parent": "minecraft:block/cube_all",
+    "credit": "ICyou security camera",
+    "texture_size": [16, 16],
     "textures": {
-        "all": "icyou:block/camera"
-    }
+        "particle": "icyou:block/camera_body",
+        "body": "icyou:block/camera_body",
+        "dark": "icyou:block/camera_dark",
+        "front": "icyou:block/camera_front"
+    },
+    "elements": [
+        {
+            "name": "wall_mount",
+            "from": [5, 5, 12],
+            "to": [11, 12, 16],
+            "faces": {
+                "north": { "texture": "#body" },
+                "south": { "texture": "#body" },
+                "east": { "texture": "#dark" },
+                "west": { "texture": "#dark" },
+                "up": { "texture": "#body" },
+                "down": { "texture": "#dark" }
+            }
+        },
+        {
+            "name": "housing",
+            "from": [3, 5, 7],
+            "to": [13, 12, 13],
+            "faces": {
+                "north": { "texture": "#dark" },
+                "south": { "texture": "#body", "uv": [3, 4, 13, 11] },
+                "east": { "texture": "#body", "uv": [0, 0, 6, 7] },
+                "west": { "texture": "#body", "uv": [0, 0, 6, 7] },
+                "up": { "texture": "#body", "uv": [0, 0, 10, 6] },
+                "down": { "texture": "#dark" }
+            }
+        },
+        {
+            "name": "lens_barrel",
+            "from": [5, 6, 2],
+            "to": [11, 11, 8],
+            "faces": {
+                "north": { "texture": "#front" },
+                "south": { "texture": "#dark" },
+                "east": { "texture": "#dark", "uv": [0, 5, 5, 10] },
+                "west": { "texture": "#dark", "uv": [0, 5, 5, 10] },
+                "up": { "texture": "#dark", "uv": [0, 0, 6, 6] },
+                "down": { "texture": "#dark", "uv": [0, 0, 6, 6] }
+            }
+        },
+        {
+            "name": "lens_rim",
+            "from": [6, 7, 1],
+            "to": [10, 10, 2],
+            "faces": {
+                "north": { "texture": "#front" },
+                "east": { "texture": "#dark" },
+                "west": { "texture": "#dark" },
+                "up": { "texture": "#dark" },
+                "down": { "texture": "#dark" }
+            }
+        },
+        {
+            "name": "status_led",
+            "from": [9.5, 10.25, 6],
+            "to": [10.5, 11.25, 7],
+            "faces": {
+                "north": { "texture": "#front", "uv": [0, 0, 1, 1] },
+                "south": { "texture": "#front", "uv": [0, 0, 1, 1] },
+                "east": { "texture": "#dark" },
+                "west": { "texture": "#dark" },
+                "up": { "texture": "#dark" },
+                "down": { "texture": "#dark" }
+            }
+        }
+    ],
+    "groups": [
+        {
+            "name": "camera",
+            "origin": [8, 8, 8],
+            "children": [0, 1, 2, 3, 4]
+        }
+    ]
 }
