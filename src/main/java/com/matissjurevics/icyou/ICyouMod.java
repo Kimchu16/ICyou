@@ -2,14 +2,16 @@ package com.matissjurevics.icyou;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
+import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.minecraft.block.Block;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
-import net.minecraft.item.ItemGroups;
+import net.minecraft.item.ItemGroup;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
@@ -36,6 +38,10 @@ public class ICyouMod implements ModInitializer {
                     .strength(2.5f, 3.0f)
     );
 
+    // The dedicated creative tab that holds every block/feature added by this mod.
+    public static final RegistryKey<ItemGroup> ICYOU_ITEM_GROUP_KEY =
+            RegistryKey.of(RegistryKeys.ITEM_GROUP, Identifier.of(MOD_ID, "main"));
+
     @Override
     public void onInitialize() {
         // --- Register the blocks ---
@@ -48,12 +54,16 @@ public class ICyouMod implements ModInitializer {
         Registry.register(Registries.ITEM, Identifier.of(MOD_ID, "glacier_block"),
                 new BlockItem(GLACIER_BLOCK, new Item.Settings()));
 
-        // --- Add the blocks to the Building Blocks creative tab ---
-        ItemGroupEvents.modifyEntriesEvent(ItemGroups.BUILDING_BLOCKS)
-                .register(entries -> {
-                    entries.add(ICY_BLOCK);
-                    entries.add(GLACIER_BLOCK);
-                });
+        // --- Register a dedicated creative tab containing all blocks from this mod ---
+        Registry.register(Registries.ITEM_GROUP, ICYOU_ITEM_GROUP_KEY,
+                FabricItemGroup.builder()
+                        .displayName(Text.translatable("itemGroup.icyou.main"))
+                        .icon(() -> new ItemStack(ICY_BLOCK))
+                        .entries((context, entries) -> {
+                            entries.add(ICY_BLOCK);
+                            entries.add(GLACIER_BLOCK);
+                        })
+                        .build());
 
         // --- Register the test command: /ictest ---
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
