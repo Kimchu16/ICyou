@@ -39,8 +39,8 @@ public class ScreenBlock extends Block implements BlockEntityProvider {
 
     public static final DirectionProperty FACING = FacingBlock.FACING;
 
-    private static final VoxelShape NS_SHAPE = Block.createCuboidShape(2, 2, 5, 14, 14, 11);
-    private static final VoxelShape EW_SHAPE = Block.createCuboidShape(5, 2, 2, 11, 14, 14);
+    private static final VoxelShape NS_SHAPE = Block.createCuboidShape(0, 0, 0, 16, 16, 3.25);
+    private static final VoxelShape EW_SHAPE = Block.createCuboidShape(0, 0, 0, 3.25, 16, 16);
 
     public ScreenBlock(Settings settings) {
         super(settings);

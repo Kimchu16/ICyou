@@ -33,8 +33,8 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
 
     private static final DirectionProperty FACING_PROP = net.minecraft.block.FacingBlock.FACING;
 
-    private static final float PANEL_HALF = 0.3125f;   // 5/16 — half of the 10px panel
-    private static final float FACE_OFFSET = -0.1898f; // just proud of the display plane
+    private static final float PANEL_HALF = 0.5f;     // full-block face (16x16 panel)
+    private static final float FACE_OFFSET = -0.501f; // just proud of the front face (z=0)
     private static final int GRID = 10;                // static cells per row/column
 
     private final TextRenderer textRenderer;
