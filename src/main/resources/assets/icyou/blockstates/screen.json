@@ -3,8 +3,6 @@
         "facing=north": { "model": "icyou:block/screen" },
         "facing=east": { "model": "icyou:block/screen", "y": 90 },
         "facing=south": { "model": "icyou:block/screen", "y": 180 },
-        "facing=west": { "model": "icyou:block/screen", "y": 270 },
-        "facing=up": { "model": "icyou:block/screen" },
-        "facing=down": { "model": "icyou:block/screen" }
+        "facing=west": { "model": "icyou:block/screen", "y": 270 }
     }
 }

@@ -3,6 +3,7 @@ package com.matissjurevics.icyou.client.render;
 import com.matissjurevics.icyou.feed.FeedBlip;
 import com.matissjurevics.icyou.client.render.RttFeedManager;
 import com.matissjurevics.icyou.feed.StylizedFeed;
+import com.matissjurevics.icyou.screen.ScreenBlock;
 import com.matissjurevics.icyou.screen.ScreenBlockEntity;
 
 import net.minecraft.client.font.TextRenderer;
@@ -31,10 +32,12 @@ import org.joml.Matrix4f;
  */
 public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity> {
 
-    private static final DirectionProperty FACING_PROP = net.minecraft.block.FacingBlock.FACING;
+    private static final DirectionProperty FACING_PROP = ScreenBlock.FACING;
 
     private static final float PANEL_HALF = 0.5f;     // full-block face (16x16 panel)
-    private static final float FACE_OFFSET = -0.501f; // just proud of the front face (z=0)
+    // The north-facing model is wall-anchored at z=16 and its display face is
+    // z=12.65. Relative to block centre, this sits just proud of that face.
+    private static final float FACE_OFFSET = 0.289625f;
     private static final int GRID = 10;                // static cells per row/column
 
     private final TextRenderer textRenderer;
@@ -175,9 +178,11 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
 
     private static float yawDegrees(Direction facing) {
         return switch (facing) {
-            case EAST -> 90f;
+            // Matrix-stack Y rotation is counter-clockwise, while block-model
+            // JSON's positive Y variants rotate clockwise when viewed above.
+            case EAST -> -90f;
             case SOUTH -> 180f;
-            case WEST -> 270f;
+            case WEST -> 90f;
             default -> 0f;
         };
     }
