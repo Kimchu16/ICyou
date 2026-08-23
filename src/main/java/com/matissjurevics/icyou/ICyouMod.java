@@ -1,8 +1,10 @@
 package com.matissjurevics.icyou;
 
 import com.matissjurevics.icyou.feed.FeedManager;
+import com.matissjurevics.icyou.registry.ModBlockEntities;
 import com.matissjurevics.icyou.registry.ModBlocks;
 import com.matissjurevics.icyou.registry.ModCommands;
+import com.matissjurevics.icyou.registry.ModDataComponentTypes;
 import com.matissjurevics.icyou.registry.ModItemGroups;
 import com.matissjurevics.icyou.registry.ModItems;
 import net.fabricmc.api.ModInitializer;
@@ -22,6 +24,8 @@ public class ICyouMod implements ModInitializer {
     @Override
     public void onInitialize() {
         ModBlocks.register();
+        ModBlockEntities.register();
+        ModDataComponentTypes.register();
         ModItems.register();
         ModItemGroups.register();
         ModCommands.register();

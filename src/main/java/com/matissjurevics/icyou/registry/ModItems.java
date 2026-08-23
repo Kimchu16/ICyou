@@ -1,6 +1,7 @@
 package com.matissjurevics.icyou.registry;
 
 import com.matissjurevics.icyou.ICyouMod;
+import com.matissjurevics.icyou.remote.SetupRemoteItem;
 import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
@@ -15,7 +16,7 @@ public final class ModItems {
             new Item(new Item.Settings()));
 
     public static final Item SETUP_REMOTE = register("setup_remote",
-            new Item(new Item.Settings()));
+            new SetupRemoteItem(new Item.Settings()));
 
     private static Item register(String name, Item item) {
         return Registry.register(Registries.ITEM, Identifier.of(ICyouMod.MOD_ID, name), item);

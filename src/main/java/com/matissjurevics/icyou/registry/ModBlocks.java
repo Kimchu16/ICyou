@@ -6,6 +6,7 @@ import com.matissjurevics.icyou.ICyouMod;
 import com.matissjurevics.icyou.camera.CameraBlock;
 import com.matissjurevics.icyou.decor.GlacierBlock;
 import com.matissjurevics.icyou.decor.IcyBlock;
+import com.matissjurevics.icyou.terminal.CameraTerminalBlock;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
 import net.minecraft.item.BlockItem;
@@ -35,7 +36,7 @@ public final class ModBlocks {
     public static final Block CAMERA = register("camera", CameraBlock::new,
             AbstractBlock.Settings.create().strength(2.0f, 2.0f));
 
-    public static final Block CAMERA_TERMINAL = register("camera_terminal", Block::new,
+    public static final Block CAMERA_TERMINAL = register("camera_terminal", CameraTerminalBlock::new,
             AbstractBlock.Settings.create().strength(2.0f, 2.0f));
 
     public static final Block SCREEN = register("screen", Block::new,
