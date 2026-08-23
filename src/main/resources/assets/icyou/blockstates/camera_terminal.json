@@ -1,7 +1,10 @@
 {
     "variants": {
-        "": {
-            "model": "icyou:block/camera_terminal"
-        }
+        "facing=south": { "model": "icyou:block/camera_terminal" },
+        "facing=west": { "model": "icyou:block/camera_terminal", "y": 90 },
+        "facing=north": { "model": "icyou:block/camera_terminal", "y": 180 },
+        "facing=east": { "model": "icyou:block/camera_terminal", "y": 270 },
+        "facing=up": { "model": "icyou:block/camera_terminal" },
+        "facing=down": { "model": "icyou:block/camera_terminal" }
     }
 }
