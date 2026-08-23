@@ -1,10 +1,12 @@
 package com.matissjurevics.icyou.client.render;
 
 import com.matissjurevics.icyou.feed.FeedBlip;
+import com.matissjurevics.icyou.client.render.RttFeedManager;
 import com.matissjurevics.icyou.feed.StylizedFeed;
 import com.matissjurevics.icyou.screen.ScreenBlockEntity;
 
 import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
@@ -14,6 +16,7 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.state.property.DirectionProperty;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.RotationAxis;
 
@@ -54,8 +57,35 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
         }
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(yawDegrees(facing)));
 
-        drawStatic(matrices, vertexConsumers);
-        drawBlips(matrices, vertexConsumers, blockEntity);
+        boolean rtt = RttFeedManager.hasLiveFeed(blockEntity);
+
+        if (rtt) {
+            // Live camera POV: draw the RTT framebuffer texture over the panel.
+            Identifier texId = RttFeedManager.textureIdFor(blockEntity);
+            if (texId != null) {
+                VertexConsumer vc = vertexConsumers.getBuffer(
+                        RenderLayer.getEntityTranslucent(texId));
+                Matrix4f m4 = matrices.peek().getPositionMatrix();
+                MatrixStack.Entry entry = matrices.peek();
+                float h = PANEL_HALF;
+                float z = FACE_OFFSET - 0.0015f;
+                vc.vertex(m4, -h,  h, z).color(255, 255, 255, 255)
+                        .texture(0, 0).overlay(OverlayTexture.DEFAULT_UV).light(light)
+                        .normal(0, 0, -1);
+                vc.vertex(m4, -h, -h, z).color(255, 255, 255, 255)
+                        .texture(0, 1).overlay(OverlayTexture.DEFAULT_UV).light(light)
+                        .normal(0, 0, -1);
+                vc.vertex(m4,  h, -h, z).color(255, 255, 255, 255)
+                        .texture(1, 1).overlay(OverlayTexture.DEFAULT_UV).light(light)
+                        .normal(0, 0, -1);
+                vc.vertex(m4,  h,  h, z).color(255, 255, 255, 255)
+                        .texture(1, 0).overlay(OverlayTexture.DEFAULT_UV).light(light)
+                        .normal(0, 0, -1);
+            }
+        } else {
+            drawStatic(matrices, vertexConsumers);
+            drawBlips(matrices, vertexConsumers, blockEntity);
+        }
 
         if (hasSignal) {
             String camDir = Direction.byId(blockEntity.getLastFacingId()).asString();

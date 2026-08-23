@@ -23,6 +23,7 @@ import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 
+import com.matissjurevics.icyou.client.render.RttFeedManager;
 import com.matissjurevics.icyou.registry.ModBlockEntities;
 
 /**
@@ -81,13 +82,20 @@ public class ScreenBlock extends Block implements BlockEntityProvider {
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state,
                                                                  BlockEntityType<T> type) {
-        if (!world.isClient && type == ModBlockEntities.SCREEN) {
+        if (type != ModBlockEntities.SCREEN) {
+            return null;
+        }
+        if (world.isClient) {
             @SuppressWarnings("unchecked")
             BlockEntityTicker<T> ticker = (BlockEntityTicker<T>)
-                    (BlockEntityTicker<ScreenBlockEntity>) ScreenBlockEntity::serverTick;
+                    (BlockEntityTicker<ScreenBlockEntity>) (w, p, s, be) ->
+                            RttFeedManager.track(be);
             return ticker;
         }
-        return null;
+        @SuppressWarnings("unchecked")
+        BlockEntityTicker<T> ticker = (BlockEntityTicker<T>)
+                (BlockEntityTicker<ScreenBlockEntity>) ScreenBlockEntity::serverTick;
+        return ticker;
     }
 
     @Override

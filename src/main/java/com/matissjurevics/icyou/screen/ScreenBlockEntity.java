@@ -44,6 +44,7 @@ public class ScreenBlockEntity extends BlockEntity {
     private int lastFacingId;
     private int lastIndex;
     private int lastCount;
+    private BlockPos lastCamPos;
 
     public ScreenBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.SCREEN, pos, state);
@@ -112,7 +113,8 @@ public class ScreenBlockEntity extends BlockEntity {
         CameraTerminalBlockEntity.BoundCamera current = terminal.getSelected(world);
         List<FeedBlip> blips = CameraViews.scanBlips(world, current.pos(), current.facing());
         FeedDataS2CPayload payload = new FeedDataS2CPayload(
-                pos, current.facing().getId(), current.index(), current.count(), blips);
+                pos, current.pos(), current.facing().getId(), current.index(),
+                current.count(), blips);
         PlayerLookup.tracking(serverWorld, pos)
                 .forEach(player -> ServerPlayNetworking.send(player, payload));
     }
@@ -120,13 +122,15 @@ public class ScreenBlockEntity extends BlockEntity {
     // --- Client-side cache ---
 
     /** Client side: called from the network receiver on the main thread. */
-    public void updateClientFeed(List<FeedBlip> blips, int facingId, int index, int count) {
+    public void updateClientFeed(List<FeedBlip> blips, BlockPos camPos, int facingId,
+                                 int index, int count) {
         clientBlips.clear();
         clientBlips.addAll(blips);
         receiving = true;
         lastFacingId = facingId;
         lastIndex = index;
         lastCount = count;
+        lastCamPos = camPos.toImmutable();
     }
 
     public List<FeedBlip> getClientBlips() {
@@ -135,6 +139,10 @@ public class ScreenBlockEntity extends BlockEntity {
 
     public boolean isReceiving() {
         return receiving;
+    }
+
+    public BlockPos getLastCamPos() {
+        return lastCamPos;
     }
 
     public int getLastFacingId() {

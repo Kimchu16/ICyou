@@ -17,8 +17,8 @@ import net.minecraft.util.math.BlockPos;
  * the blips, the camera facing (for the HUD label), and the channel position
  * within the paired terminal.
  */
-public record FeedDataS2CPayload(BlockPos screenPos, int facingId, int index, int count,
-                                 List<FeedBlip> blips)
+public record FeedDataS2CPayload(BlockPos screenPos, BlockPos camPos, int facingId,
+                                 int index, int count, List<FeedBlip> blips)
         implements CustomPayload {
 
     public static final CustomPayload.Id<FeedDataS2CPayload> ID =
@@ -29,6 +29,7 @@ public record FeedDataS2CPayload(BlockPos screenPos, int facingId, int index, in
 
     private static void write(FeedDataS2CPayload payload, RegistryByteBuf buf) {
         buf.writeBlockPos(payload.screenPos());
+        buf.writeBlockPos(payload.camPos());
         buf.writeVarInt(payload.facingId());
         buf.writeVarInt(payload.index());
         buf.writeVarInt(payload.count());
@@ -42,6 +43,7 @@ public record FeedDataS2CPayload(BlockPos screenPos, int facingId, int index, in
 
     private static FeedDataS2CPayload read(RegistryByteBuf buf) {
         BlockPos screenPos = buf.readBlockPos();
+        BlockPos camPos = buf.readBlockPos();
         int facingId = buf.readVarInt();
         int index = buf.readVarInt();
         int count = buf.readVarInt();
@@ -50,7 +52,7 @@ public record FeedDataS2CPayload(BlockPos screenPos, int facingId, int index, in
         for (int i = 0; i < blipCount; i++) {
             blips.add(new FeedBlip(buf.readFloat(), buf.readFloat(), buf.readByte()));
         }
-        return new FeedDataS2CPayload(screenPos, facingId, index, count, blips);
+        return new FeedDataS2CPayload(screenPos, camPos, facingId, index, count, blips);
     }
 
     @Override
