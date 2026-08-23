@@ -6,7 +6,7 @@ import com.matissjurevics.icyou.network.DeviceSubscriptions;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockEntityProvider;
 import net.minecraft.block.BlockState;
-import net.minecraft.block.FacingBlock;
+import net.minecraft.block.HorizontalFacingBlock;
 import net.minecraft.block.ShapeContext;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
@@ -36,9 +36,10 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
  */
 public class CameraTerminalBlock extends Block implements BlockEntityProvider {
 
-    public static final DirectionProperty FACING = FacingBlock.FACING;
+    public static final DirectionProperty FACING = HorizontalFacingBlock.FACING;
 
-    // Model natively faces SOUTH (screen on the high-z side).
+    // Model natively faces NORTH: the visible display is the north face of the
+    // thin screen elements, even though those elements sit on the high-z side.
     private static final VoxelShape NS_SHAPE = Block.createCuboidShape(1, 0, 1, 15, 10.5, 13.5);
     private static final VoxelShape EW_SHAPE = Block.createCuboidShape(1, 0, 1, 13.5, 10.5, 15);
 
@@ -54,7 +55,10 @@ public class CameraTerminalBlock extends Block implements BlockEntityProvider {
 
     @Override
     public BlockState getPlacementState(ItemPlacementContext ctx) {
-        return getDefaultState().with(FACING, ctx.getPlayerLookDirection().getOpposite());
+        // Ignore look pitch so placing while looking down at the floor cannot
+        // produce an UP/DOWN state. The laptop's front faces the placing player.
+        return getDefaultState().with(FACING,
+                ctx.getHorizontalPlayerFacing().getOpposite());
     }
 
     @Override
