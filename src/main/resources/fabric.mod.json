@@ -14,6 +14,9 @@
     "entrypoints": {
         "main": [
             "com.matissjurevics.icyou.ICyouMod"
+        ],
+        "client": [
+            "com.matissjurevics.icyou.client.ICyouClient"
         ]
     },
     "depends": {

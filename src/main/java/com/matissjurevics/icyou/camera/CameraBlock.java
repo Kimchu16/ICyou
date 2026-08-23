@@ -1,4 +1,4 @@
-package com.matissjurevics.icyou;
+package com.matissjurevics.icyou.camera;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
