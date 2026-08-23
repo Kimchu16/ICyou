@@ -22,11 +22,10 @@ public class CameraBlock extends Block {
 
     public static final DirectionProperty FACING = FacingBlock.FACING;
 
-    // Outline shapes per horizontal facing (lens side extends away from the wall).
-    private static final VoxelShape NORTH_SHAPE = Block.createCuboidShape(3, 5, 3, 13, 12, 16);
-    private static final VoxelShape SOUTH_SHAPE = Block.createCuboidShape(3, 5, 0, 13, 12, 13);
-    private static final VoxelShape EAST_SHAPE  = Block.createCuboidShape(0, 5, 3, 13, 12, 13);
-    private static final VoxelShape WEST_SHAPE  = Block.createCuboidShape(3, 5, 3, 16, 12, 13);
+    // Outline shapes per horizontal facing (lens side extends away from the wall;
+    // body hugs x/z centre with a ceiling mount reaching the top of the space).
+    private static final VoxelShape NS_SHAPE = Block.createCuboidShape(3.5, 7, 0, 12.5, 16, 16);
+    private static final VoxelShape EW_SHAPE = Block.createCuboidShape(0, 7, 3.5, 16, 16, 12.5);
 
     public CameraBlock(Settings settings) {
         super(settings);
@@ -58,11 +57,8 @@ public class CameraBlock extends Block {
     protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos,
                                          ShapeContext context) {
         return switch (state.get(FACING)) {
-            case NORTH -> NORTH_SHAPE;
-            case SOUTH -> SOUTH_SHAPE;
-            case EAST -> EAST_SHAPE;
-            case WEST -> WEST_SHAPE;
-            default -> NORTH_SHAPE;
+            case EAST, WEST -> EW_SHAPE;
+            default -> NS_SHAPE;
         };
     }
 }
