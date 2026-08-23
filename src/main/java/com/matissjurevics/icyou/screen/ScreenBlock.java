@@ -3,7 +3,6 @@ package com.matissjurevics.icyou.screen;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockEntityProvider;
 import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
 import net.minecraft.block.HorizontalFacingBlock;
 import net.minecraft.block.ShapeContext;
 import net.minecraft.block.entity.BlockEntity;
@@ -23,8 +22,6 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
-import net.minecraft.world.WorldAccess;
-import net.minecraft.world.WorldView;
 
 import com.matissjurevics.icyou.client.render.RttFeedManager;
 import com.matissjurevics.icyou.registry.ModBlockEntities;
@@ -63,35 +60,10 @@ public class ScreenBlock extends Block implements BlockEntityProvider {
 
     @Override
     public BlockState getPlacementState(ItemPlacementContext ctx) {
-        // The clicked wall face is both the side presented to the player and the
-        // direction away from the supporting block. Reject floor/ceiling placement.
-        Direction facing = ctx.getSide();
-        if (facing.getAxis().isVertical()) {
-            return null;
-        }
-
-        BlockState state = getDefaultState().with(FACING, facing);
-        return state.canPlaceAt(ctx.getWorld(), ctx.getBlockPos()) ? state : null;
-    }
-
-    @Override
-    protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-        Direction facing = state.get(FACING);
-        BlockPos supportPos = pos.offset(facing.getOpposite());
-        return world.getBlockState(supportPos)
-                .isSideSolidFullSquare(world, supportPos, facing);
-    }
-
-    @Override
-    protected BlockState getStateForNeighborUpdate(BlockState state, Direction direction,
-                                                    BlockState neighborState, WorldAccess world,
-                                                    BlockPos pos, BlockPos neighborPos) {
-        if (direction == state.get(FACING).getOpposite()
-                && !state.canPlaceAt(world, pos)) {
-            return Blocks.AIR.getDefaultState();
-        }
-        return super.getStateForNeighborUpdate(
-                state, direction, neighborState, world, pos, neighborPos);
+        // Free-standing displays always face the placing player. Horizontal
+        // facing ignores look pitch, so looking up/down cannot rotate the model.
+        return getDefaultState().with(FACING,
+                ctx.getHorizontalPlayerFacing().getOpposite());
     }
 
     @Override
