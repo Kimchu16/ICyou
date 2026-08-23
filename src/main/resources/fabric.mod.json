@@ -1,0 +1,25 @@
+{
+    "schemaVersion": 1,
+    "id": "icyou",
+    "version": "${version}",
+    "name": "ICyou",
+    "description": "A Fabric Minecraft mod.",
+    "authors": [
+        "MatissJurevics"
+    ],
+    "contact": {},
+    "license": "MIT",
+    "icon": "assets/icyou/icon.png",
+    "environment": "*",
+    "entrypoints": {
+        "main": [
+            "com.matissjurevics.icyou.ICyouMod"
+        ]
+    },
+    "depends": {
+        "fabricloader": ">=0.16.9",
+        "minecraft": "~1.21.1",
+        "java": ">=21",
+        "fabric-api": "*"
+    }
+}
