@@ -2,9 +2,13 @@ package com.matissjurevics.icyou.client;
 
 import com.matissjurevics.icyou.ICyouMod;
 import com.matissjurevics.icyou.client.render.ScreenFeedRenderer;
+import com.matissjurevics.icyou.network.FeedDataS2CPayload;
 import com.matissjurevics.icyou.registry.ModBlockEntities;
+import com.matissjurevics.icyou.screen.ScreenBlockEntity;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.BlockEntityRendererRegistry;
+import net.minecraft.client.MinecraftClient;
 
 /**
  * Client-only entrypoint. Everything that touches rendering, GUIs or other
@@ -17,6 +21,16 @@ public class ICyouClient implements ClientModInitializer {
     public void onInitializeClient() {
         BlockEntityRendererRegistry.register(
                 ModBlockEntities.SCREEN, ScreenFeedRenderer::new);
+
+        ClientPlayNetworking.registerGlobalReceiver(FeedDataS2CPayload.ID, (payload, context) -> {
+            MinecraftClient client = MinecraftClient.getInstance();
+            client.execute(() -> {
+                if (client.world != null && client.world.getBlockEntity(
+                        payload.screenPos()) instanceof ScreenBlockEntity screen) {
+                    screen.updateClientBlips(payload.blips());
+                }
+            });
+        });
 
         ICyouMod.LOGGER.info("ICyou client initialized");
     }

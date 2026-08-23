@@ -7,6 +7,7 @@ import com.matissjurevics.icyou.registry.ModCommands;
 import com.matissjurevics.icyou.registry.ModDataComponentTypes;
 import com.matissjurevics.icyou.registry.ModItemGroups;
 import com.matissjurevics.icyou.registry.ModItems;
+import com.matissjurevics.icyou.registry.ModNetworking;
 import net.fabricmc.api.ModInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +27,7 @@ public class ICyouMod implements ModInitializer {
         ModBlocks.register();
         ModBlockEntities.register();
         ModDataComponentTypes.register();
+        ModNetworking.register();
         ModItems.register();
         ModItemGroups.register();
         ModCommands.register();

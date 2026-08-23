@@ -1,8 +1,12 @@
 package com.matissjurevics.icyou.camera;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import com.matissjurevics.icyou.feed.FeedBlip;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.mob.Monster;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
@@ -71,5 +75,51 @@ public final class CameraViews {
                 facing.getOffsetX(), facing.getOffsetY(), facing.getOffsetZ());
         double minDot = Math.cos(Math.toRadians(FOV_DEGREES / 2.0));
         return relative.normalize().dotProduct(forward) >= minDot;
+    }
+
+    /** Maximum blips rendered on one feed. */
+    public static final int MAX_BLIPS = 12;
+
+    /**
+     * Scans the camera's view cone and maps each spotted entity onto panel
+     * coordinates ({@code 0..1}) for rendering on a screen.
+     */
+    public static List<FeedBlip> scanBlips(World world, BlockPos camPos, Direction facing) {
+        if (!(world.getBlockState(camPos).getBlock() instanceof CameraBlock)) {
+            return List.of();
+        }
+
+        Vec3d origin = Vec3d.ofCenter(camPos);
+        Vec3d forward = new Vec3d(
+                facing.getOffsetX(), facing.getOffsetY(), facing.getOffsetZ());
+        Vec3d right = forward.crossProduct(new Vec3d(0, 1, 0)).normalize();
+        double halfTan = Math.tan(Math.toRadians(FOV_DEGREES / 2.0));
+
+        List<FeedBlip> blips = new ArrayList<>();
+        for (LivingEntity entity : world.getEntitiesByClass(LivingEntity.class,
+                new Box(camPos).expand(RANGE), entity -> true)) {
+            Vec3d rel = entity.getBoundingBox().getCenter().subtract(origin);
+            double depth = rel.dotProduct(forward);
+            if (depth <= 0.5 || depth > RANGE) {
+                continue; // behind the camera or out of range
+            }
+            double lateral = rel.dotProduct(right);
+            double vertical = rel.y - origin.y;
+            double halfWidth = depth * halfTan;
+            if (Math.abs(lateral) > halfWidth || Math.abs(vertical) > halfWidth) {
+                continue; // outside the view cone
+            }
+
+            float u = (float) (0.5 + lateral / (2 * halfWidth));
+            float v = (float) (0.5 - vertical / (2 * halfWidth));
+            int kind = entity instanceof ServerPlayerEntity ? FeedBlip.KIND_PLAYER
+                    : entity instanceof Monster ? FeedBlip.KIND_MONSTER
+                    : FeedBlip.KIND_OTHER;
+            blips.add(new FeedBlip(u, v, kind));
+            if (blips.size() >= MAX_BLIPS) {
+                break;
+            }
+        }
+        return blips;
     }
 }

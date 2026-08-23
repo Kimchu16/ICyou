@@ -1,5 +1,6 @@
 package com.matissjurevics.icyou.client.render;
 
+import com.matissjurevics.icyou.feed.FeedBlip;
 import com.matissjurevics.icyou.feed.StylizedFeed;
 import com.matissjurevics.icyou.screen.ScreenBlockEntity;
 
@@ -53,6 +54,7 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(yawDegrees(facing)));
 
         drawStatic(matrices, vertexConsumers);
+        drawBlips(matrices, vertexConsumers, blockEntity);
 
         if (hasSignal) {
             drawText(matrices, vertexConsumers, light,
@@ -90,6 +92,24 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
                 float x1 = -PANEL_HALF + gx * cell;
                 float y1 = -PANEL_HALF + gy * cell;
                 quad(matrices, vertexConsumers, x1, y1, x1 + cell, y1 + cell, r, g, b);
+            }
+        }
+    }
+
+    /** Draws networked entity blips on top of the static. */
+    private void drawBlips(MatrixStack matrices, VertexConsumerProvider vertexConsumers,
+                           ScreenBlockEntity blockEntity) {
+        for (FeedBlip blip : blockEntity.getClientBlips()) {
+            float px = -PANEL_HALF + blip.u() * PANEL_HALF * 2f;
+            float py = PANEL_HALF - blip.v() * PANEL_HALF * 2f;
+            float s = 0.028f;
+            switch (blip.kind()) {
+                case FeedBlip.KIND_PLAYER -> quad(matrices, vertexConsumers,
+                        px - s, py - s, px + s, py + s, 60, 255, 120);
+                case FeedBlip.KIND_MONSTER -> quad(matrices, vertexConsumers,
+                        px - s, py - s, px + s, py + s, 255, 70, 50);
+                default -> quad(matrices, vertexConsumers,
+                        px - s, py - s, px + s, py + s, 255, 220, 80);
             }
         }
     }

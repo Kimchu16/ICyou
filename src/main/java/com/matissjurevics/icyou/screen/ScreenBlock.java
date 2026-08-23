@@ -6,6 +6,8 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.FacingBlock;
 import net.minecraft.block.ShapeContext;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityTicker;
+import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.DirectionProperty;
@@ -15,6 +17,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.BlockView;
+
+import com.matissjurevics.icyou.registry.ModBlockEntities;
+import net.minecraft.world.World;
 
 /**
  * A wall-mountable display panel. Bind a camera to it with the Setup Remote
@@ -65,5 +70,17 @@ public class ScreenBlock extends Block implements BlockEntityProvider {
     @Override
     public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
         return new ScreenBlockEntity(pos, state);
+    }
+
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state,
+                                                                 BlockEntityType<T> type) {
+        if (!world.isClient && type == ModBlockEntities.SCREEN) {
+            @SuppressWarnings("unchecked")
+            BlockEntityTicker<T> ticker = (BlockEntityTicker<T>)
+                    (BlockEntityTicker<ScreenBlockEntity>) ScreenBlockEntity::serverTick;
+            return ticker;
+        }
+        return null;
     }
 }
