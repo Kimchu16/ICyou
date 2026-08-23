@@ -13,12 +13,20 @@ import net.minecraft.state.StateManager;
 import net.minecraft.state.property.DirectionProperty;
 import net.minecraft.util.BlockMirror;
 import net.minecraft.util.BlockRotation;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.BlockView;
 
+import com.matissjurevics.icyou.camera.CameraBlock;
+import com.matissjurevics.icyou.network.EnterCameraViewS2CPayload;
 import com.matissjurevics.icyou.registry.ModBlockEntities;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.Text;
 import net.minecraft.world.World;
 
 /**
@@ -70,6 +78,27 @@ public class ScreenBlock extends Block implements BlockEntityProvider {
     @Override
     public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
         return new ScreenBlockEntity(pos, state);
+    }
+
+    @Override
+    protected ActionResult onUse(BlockState state, World world, BlockPos pos,
+                                 PlayerEntity player, BlockHitResult hit) {
+        if (!world.isClient && world.getBlockEntity(pos) instanceof ScreenBlockEntity screen) {
+            if (screen.getLinkedCamera().isEmpty()) {
+                player.sendMessage(Text.literal("No camera bound to this screen."), false);
+            } else {
+                BlockPos cam = screen.getLinkedCamera().get();
+                // Signal check before detaching their view.
+                if (world.getBlockState(cam).getBlock() instanceof CameraBlock) {
+                    ServerPlayNetworking.send((ServerPlayerEntity) player,
+                            new EnterCameraViewS2CPayload(cam,
+                                    screen.getCameraFacing().getId()));
+                } else {
+                    player.sendMessage(Text.literal("Signal lost."), false);
+                }
+            }
+        }
+        return ActionResult.SUCCESS;
     }
 
     @Override

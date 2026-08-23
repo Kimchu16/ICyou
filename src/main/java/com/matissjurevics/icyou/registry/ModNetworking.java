@@ -1,5 +1,6 @@
 package com.matissjurevics.icyou.registry;
 
+import com.matissjurevics.icyou.network.EnterCameraViewS2CPayload;
 import com.matissjurevics.icyou.network.FeedDataS2CPayload;
 
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
@@ -12,5 +13,7 @@ public final class ModNetworking {
     public static void register() {
         PayloadTypeRegistry.playS2C().register(
                 FeedDataS2CPayload.ID, FeedDataS2CPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                EnterCameraViewS2CPayload.ID, EnterCameraViewS2CPayload.CODEC);
     }
 }

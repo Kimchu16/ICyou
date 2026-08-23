@@ -11,6 +11,9 @@
     "license": "MIT",
     "icon": "assets/icyou/icon.png",
     "environment": "*",
+    "mixins": [
+        "icyou.client-mixins.json"
+    ],
     "entrypoints": {
         "main": [
             "com.matissjurevics.icyou.ICyouMod"
