@@ -96,6 +96,13 @@ public final class CameraViewController {
             while (client.options.sneakKey.wasPressed()) {
                 exit();
             }
+            if (!isActive()) {
+                return; // exited above
+            }
+            if (client.player == null || client.world == null) {
+                exit();
+                return;
+            }
             // Signal lost if the camera block disappears.
             if (!(client.world.getBlockState(camPos).getBlock() instanceof CameraBlock)) {
                 exit();
