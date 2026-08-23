@@ -12,9 +12,13 @@ import com.matissjurevics.icyou.ICyouMod;
 import com.matissjurevics.icyou.camera.CameraViews;
 import com.matissjurevics.icyou.screen.ScreenBlockEntity;
 
+import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.SimpleFramebuffer;
+import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.client.render.RenderLayers;
 import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.model.BakedModel;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.client.util.math.MatrixStack;
@@ -27,6 +31,8 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.World;
 
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
@@ -51,6 +57,11 @@ public final class RttFeedManager {
     private static final double VIEW_DISTANCE = 48.0;
     private static final float FOV_DEGREES = 70.0f;
     private static final int MAX_FAILURES = 5;
+
+    /** Block radius scanned for terrain around the camera. */
+    private static final int TERRAIN_RADIUS = 8;
+    /** Max blocks drawn per frame refresh (perf cap). */
+    private static final int TERRAIN_BLOCK_BUDGET = 350;
 
     private static final class Channel {
         final ScreenBlockEntity be;
@@ -169,6 +180,7 @@ public final class RttFeedManager {
             matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(yaw + 180.0f));
             matrices.translate(-origin.x, -origin.y, -origin.z);
 
+            renderTerrain(client, matrices, camPos, origin);
             renderEntities(client, matrices, camPos, origin);
 
             // --- read back and publish ---
@@ -202,6 +214,64 @@ public final class RttFeedManager {
             }
         }
     }
+
+    /**
+     * Renders real block geometry around the camera: every non-air block
+     * within {@link #TERRAIN_RADIUS} is drawn with its baked model, actual
+     * textures, ambient occlusion and world lighting. Budget-capped.
+     */
+    private static void renderTerrain(MinecraftClient client, MatrixStack matrices,
+                                      BlockPos camPos, Vec3d origin) {
+        var world = client.world;
+        var brm = client.getBlockRenderManager();
+        var consumers = client.getBufferBuilders().getEntityVertexConsumers();
+        Random random = Random.create();
+        int budget = TERRAIN_BLOCK_BUDGET;
+
+        for (BlockPos p : BlockPos.iterateOutwards(camPos, TERRAIN_RADIUS, TERRAIN_RADIUS, TERRAIN_RADIUS)) {
+            if (budget <= 0) {
+                break;
+            }
+            if (p.equals(camPos)) {
+                continue;
+            }
+            BlockState state = world.getBlockState(p);
+            if (state.isAir() || allNeighboursSolid(world, p)) {
+                continue;
+            }
+            Vec3d rel = Vec3d.ofCenter(p).subtract(origin);
+            if (rel.lengthSquared() > CameraViews.RANGE * CameraViews.RANGE) {
+                continue;
+            }
+
+            matrices.push();
+            matrices.translate(p.getX() - origin.x, p.getY() - origin.y, p.getZ() - origin.z);
+            try {
+                BakedModel model = brm.getModel(state);
+                VertexConsumerProvider.Immediate consumers2 = consumers; // clarity
+                var vc = consumers2.getBuffer(RenderLayers.getBlockLayer(state));
+                brm.getModelRenderer().render(world, model, state, p, matrices, vc,
+                        false, random, state.getRenderingSeed(p), OverlayTexture.DEFAULT_UV);
+                budget--;
+            } catch (Throwable ignored) {
+                // a single unrenderable block must not kill the feed
+            } finally {
+                matrices.pop();
+            }
+        }
+    }
+
+    private static boolean allNeighboursSolid(World world, BlockPos p) {
+        for (Direction d : Direction.values()) {
+            if (!world.getBlockState(p.offset(d)).isOpaqueFullCube(world, p.offset(d))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Renders every living entity inside the camera's range with its actual
 
     /**
      * Renders every living entity inside the camera's range with its actual
