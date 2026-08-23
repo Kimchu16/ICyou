@@ -13,11 +13,12 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
 /**
- * Server → client: latest stylized-feed snapshot for one screen block.
- * Blip coordinates are panel-space (0..1) computed server-side from the
- * linked camera's view cone.
+ * Server → client: latest stylized-feed snapshot for one screen block —
+ * the blips, the camera facing (for the HUD label), and the channel position
+ * within the paired terminal.
  */
-public record FeedDataS2CPayload(BlockPos screenPos, List<FeedBlip> blips)
+public record FeedDataS2CPayload(BlockPos screenPos, int facingId, int index, int count,
+                                 List<FeedBlip> blips)
         implements CustomPayload {
 
     public static final CustomPayload.Id<FeedDataS2CPayload> ID =
@@ -28,6 +29,9 @@ public record FeedDataS2CPayload(BlockPos screenPos, List<FeedBlip> blips)
 
     private static void write(FeedDataS2CPayload payload, RegistryByteBuf buf) {
         buf.writeBlockPos(payload.screenPos());
+        buf.writeVarInt(payload.facingId());
+        buf.writeVarInt(payload.index());
+        buf.writeVarInt(payload.count());
         buf.writeVarInt(payload.blips().size());
         for (FeedBlip blip : payload.blips()) {
             buf.writeFloat(blip.u());
@@ -37,13 +41,16 @@ public record FeedDataS2CPayload(BlockPos screenPos, List<FeedBlip> blips)
     }
 
     private static FeedDataS2CPayload read(RegistryByteBuf buf) {
-        BlockPos pos = buf.readBlockPos();
+        BlockPos screenPos = buf.readBlockPos();
+        int facingId = buf.readVarInt();
+        int index = buf.readVarInt();
         int count = buf.readVarInt();
-        List<FeedBlip> blips = new ArrayList<>(count);
-        for (int i = 0; i < count; i++) {
+        int blipCount = buf.readVarInt();
+        List<FeedBlip> blips = new ArrayList<>(blipCount);
+        for (int i = 0; i < blipCount; i++) {
             blips.add(new FeedBlip(buf.readFloat(), buf.readFloat(), buf.readByte()));
         }
-        return new FeedDataS2CPayload(pos, blips);
+        return new FeedDataS2CPayload(screenPos, facingId, index, count, blips);
     }
 
     @Override

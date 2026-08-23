@@ -21,8 +21,16 @@ public final class ModDataComponentTypes {
             .packetCodec(BlockPos.PACKET_CODEC)
             .build();
 
+    /** Terminal position a Portable Screen is paired with. */
+    public static final ComponentType<BlockPos> LINKED_TERMINAL = ComponentType.<BlockPos>builder()
+            .codec(BlockPos.CODEC)
+            .packetCodec(BlockPos.PACKET_CODEC)
+            .build();
+
     public static void register() {
         Registry.register(Registries.DATA_COMPONENT_TYPE,
                 Identifier.of(ICyouMod.MOD_ID, "linked_camera"), LINKED_CAMERA);
+        Registry.register(Registries.DATA_COMPONENT_TYPE,
+                Identifier.of(ICyouMod.MOD_ID, "linked_terminal"), LINKED_TERMINAL);
     }
 }

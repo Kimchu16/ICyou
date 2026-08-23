@@ -1,6 +1,7 @@
 package com.matissjurevics.icyou.registry;
 
 import com.matissjurevics.icyou.ICyouMod;
+import com.matissjurevics.icyou.item.PortableScreenItem;
 import com.matissjurevics.icyou.remote.SetupRemoteItem;
 import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
@@ -13,7 +14,7 @@ public final class ModItems {
     private ModItems() {}
 
     public static final Item PORTABLE_SCREEN = register("portable_screen",
-            new Item(new Item.Settings()));
+            new PortableScreenItem(new Item.Settings()));
 
     public static final Item SETUP_REMOTE = register("setup_remote",
             new SetupRemoteItem(new Item.Settings()));

@@ -1,15 +1,18 @@
 package com.matissjurevics.icyou.client;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.matissjurevics.icyou.camera.CameraBlock;
+import com.matissjurevics.icyou.network.EnterCameraViewS2CPayload;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.render.RenderTickCounter;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -17,10 +20,10 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * Owns the "viewing a security camera" state. While active, the camera mixin
- * anchors the player's view to the linked security camera; mouse look pans and
- * tilts that camera remotely (the player's body stays frozen in place), and
- * sneaking ends the feed.
+ * Owns the "viewing a security camera" state. While active:
+ * - the camera mixin anchors the view to the security camera,
+ * - mouse look pans/tilts that camera remotely (body frozen, movement locked),
+ * - sneaking ends the feed.
  */
 public final class CameraViewController {
 
@@ -28,6 +31,9 @@ public final class CameraViewController {
 
     /** Immutable snapshot of the overridden camera pose, read by the mixin. */
     public record View(Vec3d pos, float yaw, float pitch, Direction facing) {}
+
+    private static List<EnterCameraViewS2CPayload.CamRef> targets = List.of();
+    private static int targetIndex;
 
     private static boolean active;
     private static BlockPos camPos;
@@ -49,33 +55,66 @@ public final class CameraViewController {
         return active;
     }
 
-    public static void enter(BlockPos cameraPos, Direction facing) {
-        camPos = cameraPos.toImmutable();
-        camFacing = facing;
-        viewPos = Vec3d.ofCenter(cameraPos)
-                .add(new Vec3d(facing.getOffsetX(), 0, facing.getOffsetZ()).multiply(0.2))
-                .add(0, -0.1, 0);
-
-        float[] saved = REMEMBERED_ANGLES.get(camPos);
-        viewYaw = saved != null ? saved[0] : yawFor(facing);
-        viewPitch = saved != null ? saved[1] : -20.0f;
-
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player != null) {
-            bodyYaw = client.player.getYaw();
-            bodyPitch = client.player.getPitch();
+    /**
+     * Starts (or switches) the detached feed. Called from the network
+     * receiver on the main thread; safe to call repeatedly to change channel.
+     */
+    public static void begin(List<EnterCameraViewS2CPayload.CamRef> cameras) {
+        if (cameras.isEmpty()) {
+            return;
         }
-        client.gameRenderer.setRenderHand(false);
+        MinecraftClient client = MinecraftClient.getInstance();
+        EnterCameraViewS2CPayload.CamRef first = cameras.get(0);
+
+        if (active && camPos != null) {
+            saveAngles(); // remember where we left the previous camera
+        }
+        targets = cameras;
+        applyTarget(first, client);
         active = true;
     }
 
-    public static void exit() {
+    private static void applyTarget(EnterCameraViewS2CPayload.CamRef ref, MinecraftClient client) {
+        camPos = ref.pos().toImmutable();
+        camFacing = Direction.byId(ref.facingId());
+        viewPos = Vec3d.ofCenter(camPos)
+                .add(new Vec3d(camFacing.getOffsetX(), 0, camFacing.getOffsetZ()).multiply(0.2))
+                .add(0, -0.1, 0);
+
+        float[] saved = REMEMBERED_ANGLES.get(camPos);
+        viewYaw = saved != null ? saved[0] : yawFor(camFacing);
+        viewPitch = saved != null ? saved[1] : -20.0f;
+
         if (!isActive()) {
+            // Fresh entry: freeze the player's body where they stand.
+            if (client.player != null) {
+                bodyYaw = client.player.getYaw();
+                bodyPitch = client.player.getPitch();
+            }
+            client.gameRenderer.setRenderHand(false);
+        }
+    }
+
+    /** Advances to the next camera in the current target list (if several). */
+    public static void cycleTarget() {
+        if (targets.size() < 2) {
+            return;
+        }
+        MinecraftClient client = MinecraftClient.getInstance();
+        saveAngles();
+        targetIndex = Math.floorMod(targetIndex + 1, targets.size());
+        applyTarget(targets.get(targetIndex), client);
+    }
+
+    public static void exit() {
+        if (!active) {
             return;
         }
         saveAngles();
         active = false;
         camPos = null;
+        targets = List.of();
+        targetIndex = 0;
         MinecraftClient.getInstance().gameRenderer.setRenderHand(true);
     }
 
@@ -85,22 +124,22 @@ public final class CameraViewController {
             if (!isActive()) {
                 return;
             }
-            if (client.player == null || client.world == null) {
+            PlayerEntity player = client.player;
+            if (player == null || client.world == null) {
                 exit();
                 return;
             }
 
-            routeMouseLookToCamera(client);
+            routeMouseLookToCamera(player);
+
+            // Lock movement: cancel any velocity WASD/gravity accumulated.
+            player.setVelocity(0, 0, 0);
 
             // Sneak leaves the feed.
             while (client.options.sneakKey.wasPressed()) {
                 exit();
             }
-            if (!isActive()) {
-                return; // exited above
-            }
-            if (client.player == null || client.world == null) {
-                exit();
+            if (!isActive() || camPos == null) {
                 return;
             }
             // Signal lost if the camera block disappears.
@@ -117,8 +156,7 @@ public final class CameraViewController {
      * tick we harvest that rotation as pan/tilt deltas for the remote camera
      * and then reset the body, so the player doesn't spin around physically.
      */
-    private static void routeMouseLookToCamera(MinecraftClient client) {
-        var player = client.player;
+    private static void routeMouseLookToCamera(PlayerEntity player) {
         float deltaYaw = player.getYaw() - bodyYaw;
         float deltaPitch = player.getPitch() - bodyPitch;
 
@@ -160,8 +198,11 @@ public final class CameraViewController {
         context.drawTextWithShadow(client.textRenderer,
                 Text.literal("LIVE"), w - 48, 4, 0xFFFFFFFF);
 
+        String channel = targets.size() > 1
+                ? String.format("CAM %d/%d", targetIndex + 1, targets.size())
+                : "CAM";
         context.drawTextWithShadow(client.textRenderer,
-                Text.literal("CAM [" + camFacing.asString() + "]"), 6, 4, 0xFF60FF60);
+                Text.literal(channel + " [" + camFacing.asString() + "]"), 6, 4, 0xFF60FF60);
         context.drawTextWithShadow(client.textRenderer,
                 Text.literal(String.format("YAW %4d  PIT %3d",
                         (int) viewYaw, (int) viewPitch)),

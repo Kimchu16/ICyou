@@ -8,30 +8,28 @@ import net.minecraft.block.ShapeContext;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.DirectionProperty;
+import net.minecraft.text.Text;
+import net.minecraft.util.ActionResult;
 import net.minecraft.util.BlockMirror;
 import net.minecraft.util.BlockRotation;
-import net.minecraft.util.ActionResult;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.BlockView;
-
-import com.matissjurevics.icyou.camera.CameraBlock;
-import com.matissjurevics.icyou.network.EnterCameraViewS2CPayload;
-import com.matissjurevics.icyou.registry.ModBlockEntities;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
 import net.minecraft.world.World;
 
+import com.matissjurevics.icyou.registry.ModBlockEntities;
+
 /**
- * A wall-mountable display panel. Bind a camera to it with the Setup Remote
- * and its face renders that camera's live feed (see the client BER).
+ * A passive display panel: pairs with the nearest camera terminal and renders
+ * that terminal's selected camera feed on its face. Screens hold no cameras
+ * themselves — see {@link CameraTerminalBlockEntity} (the hub) and the
+ * portable screen item (the viewport).
  */
 public class ScreenBlock extends Block implements BlockEntityProvider {
 
@@ -81,36 +79,6 @@ public class ScreenBlock extends Block implements BlockEntityProvider {
     }
 
     @Override
-    protected ActionResult onUse(BlockState state, World world, BlockPos pos,
-                                 PlayerEntity player, BlockHitResult hit) {
-        if (!world.isClient && world.getBlockEntity(pos) instanceof ScreenBlockEntity screen) {
-            if (screen.getCount() == 0) {
-                player.sendMessage(Text.literal("No camera bound to this screen."), false);
-                return ActionResult.SUCCESS;
-            }
-
-            // Sneak-use cycles channels; plain use views the current one.
-            if (player.isSneaking()) {
-                ScreenBlockEntity.BoundCamera next = screen.cycle(world);
-                player.sendMessage(Text.literal(String.format(
-                        "Switched to CAM %d/%d [%s]",
-                        next.index(), next.count(), next.facing().asString())), true);
-                return ActionResult.SUCCESS;
-            }
-
-            ScreenBlockEntity.BoundCamera current = screen.getCurrent(world);
-            if (world.getBlockState(current.pos()).getBlock() instanceof CameraBlock) {
-                ServerPlayNetworking.send((ServerPlayerEntity) player,
-                        new EnterCameraViewS2CPayload(current.pos(),
-                                current.facing().getId()));
-            } else {
-                player.sendMessage(Text.literal("Signal lost."), false);
-            }
-        }
-        return ActionResult.SUCCESS;
-    }
-
-    @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state,
                                                                  BlockEntityType<T> type) {
         if (!world.isClient && type == ModBlockEntities.SCREEN) {
@@ -120,5 +88,24 @@ public class ScreenBlock extends Block implements BlockEntityProvider {
             return ticker;
         }
         return null;
+    }
+
+    @Override
+    protected ActionResult onUse(BlockState state, World world, BlockPos pos,
+                                 PlayerEntity player, BlockHitResult hit) {
+        // Passive display — right-click just reports pairing status.
+        if (!world.isClient && world.getBlockEntity(pos) instanceof ScreenBlockEntity screen) {
+            if (screen.isReceiving()) {
+                player.sendMessage(Text.literal(String.format(
+                        "Display live — CAM %d/%d", screen.getLastIndex(), screen.getLastCount())),
+                        true);
+            } else {
+                player.sendMessage(Text.literal(
+                        "No feed — place a camera terminal within "
+                                + ScreenBlockEntity.PAIR_RANGE + " blocks and link cameras to it."),
+                        true);
+            }
+        }
+        return ActionResult.SUCCESS;
     }
 }

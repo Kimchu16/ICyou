@@ -13,6 +13,7 @@ import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.state.property.DirectionProperty;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.RotationAxis;
 
@@ -42,7 +43,7 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
     @Override
     public void render(ScreenBlockEntity blockEntity, float tickDelta, MatrixStack matrices,
                        VertexConsumerProvider vertexConsumers, int light, int overlay) {
-        boolean hasSignal = blockEntity.getCount() > 0;
+        boolean hasSignal = blockEntity.isReceiving();
 
         matrices.push();
         // Move to block centre and rotate so -Z is the direction the screen faces.
@@ -57,12 +58,12 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
         drawBlips(matrices, vertexConsumers, blockEntity);
 
         if (hasSignal) {
-            var world = blockEntity.getWorld();
-            String camDir = world != null
-                    ? blockEntity.getCurrent(world).facing().asString()
-                    : "?";
+            String camDir = Direction.byId(blockEntity.getLastFacingId()).asString();
+            String channel = blockEntity.getLastCount() > 1
+                    ? blockEntity.getLastIndex() + "/" + blockEntity.getLastCount()
+                    : "";
             drawText(matrices, vertexConsumers, light,
-                    Text.literal("CAM [" + camDir + "]"),
+                    Text.literal("CAM " + channel + " [" + camDir + "]").formatted(Formatting.GREEN),
                     PANEL_HALF * 0.55f, 0.06f, 0xFF60FF60);
         } else {
             drawText(matrices, vertexConsumers, light,
