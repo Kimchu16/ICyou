@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+import com.matissjurevics.icyou.camera.CameraBlock;
 import com.matissjurevics.icyou.camera.CameraViews;
 import com.matissjurevics.icyou.feed.FeedBlip;
 import com.matissjurevics.icyou.network.FeedDataS2CPayload;
@@ -21,13 +22,21 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 
 /**
- * Holds the camera a screen displays. The camera's facing is captured at bind
- * time so the client renderer never needs to load the camera's chunk.
+ * A screen can hold several cameras ("channels") and display one at a time.
+ * Sneak-using the screen cycles to the next channel; right-clicking views it.
  */
 public class ScreenBlockEntity extends BlockEntity {
 
-    private BlockPos linkedCamera;
-    private Direction cameraFacing = Direction.NORTH;
+    /** Maximum number of cameras one screen can hold. */
+    public static final int MAX_CAMERAS = 8;
+
+    /** A camera reference together with its facing, resolved for convenience. */
+    public record BoundCamera(BlockPos pos, Direction facing, int index, int count) {}
+
+    private final List<BlockPos> cameras = new ArrayList<>();
+    private int currentIndex;
+    /** Fallback facing for when the camera's chunk isn't loaded. */
+    private Direction currentFacing = Direction.NORTH;
 
     /** Server-side cadence counter for feed syncs. */
     private int syncCounter;
@@ -38,18 +47,59 @@ public class ScreenBlockEntity extends BlockEntity {
         super(ModBlockEntities.SCREEN, pos, state);
     }
 
-    public void bind(BlockPos cameraPos, Direction cameraFacing) {
-        this.linkedCamera = cameraPos.toImmutable();
-        this.cameraFacing = cameraFacing;
+    // --- Channel management ---
+
+    /**
+     * Adds a camera (if new) and switches the display to it.
+     *
+     * @return false if the screen already holds {@link #MAX_CAMERAS} cameras
+     */
+    public boolean bind(BlockPos pos, Direction facing) {
+        pos = pos.toImmutable();
+        if (!cameras.contains(pos)) {
+            if (cameras.size() >= MAX_CAMERAS) {
+                return false;
+            }
+            cameras.add(pos);
+        }
+        currentIndex = cameras.indexOf(pos);
+        currentFacing = facing;
         markDirty();
+        return true;
     }
 
-    public Optional<BlockPos> getLinkedCamera() {
-        return Optional.ofNullable(linkedCamera);
+    /**
+     * Advances to the next channel (wrapping around) and resolves its facing
+     * from the world.
+     *
+     * @return the newly selected camera, or null if the screen has none
+     */
+    public BoundCamera cycle(World world) {
+        if (cameras.isEmpty()) {
+            return null;
+        }
+        currentIndex = (currentIndex + 1) % cameras.size();
+        markDirty();
+        return getCurrent(world);
     }
 
-    public Direction getCameraFacing() {
-        return cameraFacing;
+    /** The currently selected camera with its facing, or null if none bound. */
+    public BoundCamera getCurrent(World world) {
+        if (cameras.isEmpty()) {
+            return null;
+        }
+        int index = Math.floorMod(currentIndex, cameras.size());
+        BlockPos pos = cameras.get(index);
+        Direction facing = currentFacing;
+        BlockState state = world.getBlockState(pos);
+        if (state.getBlock() instanceof CameraBlock) {
+            facing = state.get(CameraBlock.FACING);
+        }
+        return new BoundCamera(pos, facing, index + 1, cameras.size());
+    }
+
+    public int getCount() {
+        return cameras.size();
     }
 
     // --- Feed syncing (phase 3) ---
@@ -58,8 +108,8 @@ public class ScreenBlockEntity extends BlockEntity {
 
     /**
      * Server ticker (wired up by {@code ScreenBlock.getTicker}): scans the
-     * linked camera's view cone and pushes a snapshot to every player who can
-     * see this screen.
+     * selected camera's view cone and pushes a snapshot to every player who
+     * can see this screen.
      */
     public static void serverTick(World world, BlockPos pos, BlockState state,
                                   ScreenBlockEntity screen) {
@@ -67,11 +117,12 @@ public class ScreenBlockEntity extends BlockEntity {
             return;
         }
         screen.syncCounter = 0;
-        if (!(world instanceof ServerWorld serverWorld) || screen.linkedCamera == null) {
+        if (!(world instanceof ServerWorld serverWorld)
+                || screen.cameras.isEmpty()) {
             return;
         }
-        List<FeedBlip> blips = CameraViews.scanBlips(
-                world, screen.linkedCamera, screen.cameraFacing);
+        BoundCamera current = screen.getCurrent(world);
+        List<FeedBlip> blips = CameraViews.scanBlips(world, current.pos(), current.facing());
         FeedDataS2CPayload payload = new FeedDataS2CPayload(pos, blips);
         PlayerLookup.tracking(serverWorld, pos)
                 .forEach(player -> ServerPlayNetworking.send(player, payload));
@@ -87,26 +138,37 @@ public class ScreenBlockEntity extends BlockEntity {
         return Collections.unmodifiableList(clientBlips);
     }
 
+    // --- Persistence ---
+
     @Override
     protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
         super.writeNbt(nbt, lookup);
-        if (linkedCamera != null) {
-            nbt.putLong("camera", linkedCamera.asLong());
-            nbt.putString("cam_facing", cameraFacing.getName());
-        }
+        nbt.putLongArray("cameras",
+                cameras.stream().mapToLong(BlockPos::asLong).toArray());
+        nbt.putInt("index", currentIndex);
+        nbt.putString("cam_facing", currentFacing.getName());
     }
 
     @Override
     public void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
         super.readNbt(nbt, lookup);
-        if (nbt.contains("camera")) {
-            linkedCamera = BlockPos.fromLong(nbt.getLong("camera"));
-            cameraFacing = Direction.byName(nbt.getString("cam_facing"));
-            if (cameraFacing == null) {
-                cameraFacing = Direction.NORTH;
-            }
-        } else {
-            linkedCamera = null;
+        cameras.clear();
+        for (long encoded : nbt.getLongArray("cameras")) {
+            cameras.add(BlockPos.fromLong(encoded));
         }
+        // Migration: worlds saved before multi-channel screens held one camera.
+        if (cameras.isEmpty() && nbt.contains("camera")) {
+            cameras.add(BlockPos.fromLong(nbt.getLong("camera")));
+        }
+        currentIndex = Math.floorMod(nbt.getInt("index"), Math.max(1, cameras.size()));
+        Direction parsed = Direction.byName(nbt.getString("cam_facing"));
+        currentFacing = parsed != null ? parsed : Direction.NORTH;
+    }
+
+    @Override
+    public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup lookup) {
+        // Send the full channel list to clients when the chunk streams in,
+        // so the renderer knows the bound camera immediately.
+        return createNbt(lookup);
     }
 }

@@ -84,18 +84,27 @@ public class ScreenBlock extends Block implements BlockEntityProvider {
     protected ActionResult onUse(BlockState state, World world, BlockPos pos,
                                  PlayerEntity player, BlockHitResult hit) {
         if (!world.isClient && world.getBlockEntity(pos) instanceof ScreenBlockEntity screen) {
-            if (screen.getLinkedCamera().isEmpty()) {
+            if (screen.getCount() == 0) {
                 player.sendMessage(Text.literal("No camera bound to this screen."), false);
+                return ActionResult.SUCCESS;
+            }
+
+            // Sneak-use cycles channels; plain use views the current one.
+            if (player.isSneaking()) {
+                ScreenBlockEntity.BoundCamera next = screen.cycle(world);
+                player.sendMessage(Text.literal(String.format(
+                        "Switched to CAM %d/%d [%s]",
+                        next.index(), next.count(), next.facing().asString())), true);
+                return ActionResult.SUCCESS;
+            }
+
+            ScreenBlockEntity.BoundCamera current = screen.getCurrent(world);
+            if (world.getBlockState(current.pos()).getBlock() instanceof CameraBlock) {
+                ServerPlayNetworking.send((ServerPlayerEntity) player,
+                        new EnterCameraViewS2CPayload(current.pos(),
+                                current.facing().getId()));
             } else {
-                BlockPos cam = screen.getLinkedCamera().get();
-                // Signal check before detaching their view.
-                if (world.getBlockState(cam).getBlock() instanceof CameraBlock) {
-                    ServerPlayNetworking.send((ServerPlayerEntity) player,
-                            new EnterCameraViewS2CPayload(cam,
-                                    screen.getCameraFacing().getId()));
-                } else {
-                    player.sendMessage(Text.literal("Signal lost."), false);
-                }
+                player.sendMessage(Text.literal("Signal lost."), false);
             }
         }
         return ActionResult.SUCCESS;

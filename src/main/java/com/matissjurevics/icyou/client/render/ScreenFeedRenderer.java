@@ -42,7 +42,7 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
     @Override
     public void render(ScreenBlockEntity blockEntity, float tickDelta, MatrixStack matrices,
                        VertexConsumerProvider vertexConsumers, int light, int overlay) {
-        boolean hasSignal = blockEntity.getLinkedCamera().isPresent();
+        boolean hasSignal = blockEntity.getCount() > 0;
 
         matrices.push();
         // Move to block centre and rotate so -Z is the direction the screen faces.
@@ -57,8 +57,12 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
         drawBlips(matrices, vertexConsumers, blockEntity);
 
         if (hasSignal) {
+            var world = blockEntity.getWorld();
+            String camDir = world != null
+                    ? blockEntity.getCurrent(world).facing().asString()
+                    : "?";
             drawText(matrices, vertexConsumers, light,
-                    Text.literal("CAM [" + blockEntity.getCameraFacing().asString() + "]"),
+                    Text.literal("CAM [" + camDir + "]"),
                     PANEL_HALF * 0.55f, 0.06f, 0xFF60FF60);
         } else {
             drawText(matrices, vertexConsumers, light,
