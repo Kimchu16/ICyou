@@ -41,7 +41,10 @@ public final class ModBlocks {
             AbstractBlock.Settings.create().strength(2.0f, 2.0f));
 
     public static final Block SCREEN = register("screen", ScreenBlock::new,
-            AbstractBlock.Settings.create().strength(2.0f, 2.0f));
+            // The wall display only occupies a thin slice of its block space.
+            // Non-opaque prevents Minecraft from culling the supporting block's
+            // face as though the display were a full cube.
+            AbstractBlock.Settings.create().strength(2.0f, 2.0f).nonOpaque());
 
     private static Block register(String name, Function<AbstractBlock.Settings, Block> factory,
                                   AbstractBlock.Settings settings) {
