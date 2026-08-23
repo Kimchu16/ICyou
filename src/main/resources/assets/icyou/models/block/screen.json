@@ -1,6 +1,42 @@
 {
-    "parent": "minecraft:block/cube_all",
+    "credit": "ICyou security screen",
     "textures": {
-        "all": "icyou:block/screen"
-    }
+        "particle": "icyou:block/screen_frame",
+        "frame": "icyou:block/screen_frame",
+        "display": "icyou:block/screen"
+    },
+    "elements": [
+        {
+            "name": "housing",
+            "from": [2, 2, 6],
+            "to": [14, 14, 11],
+            "faces": {
+                "north": { "texture": "#frame" },
+                "south": { "texture": "#frame", "uv": [16, 0, 0, 16] },
+                "east": { "texture": "#frame", "uv": [0, 0, 5, 12] },
+                "west": { "texture": "#frame", "uv": [0, 0, 5, 12] },
+                "up": { "texture": "#frame", "uv": [0, 0, 12, 5] },
+                "down": { "texture": "#frame", "uv": [0, 0, 12, 5] }
+            }
+        },
+        {
+            "name": "display",
+            "from": [3, 3, 5],
+            "to": [13, 13, 6],
+            "faces": {
+                "north": { "texture": "#display" },
+                "east": { "texture": "#frame", "uv": [0, 0, 1, 10] },
+                "west": { "texture": "#frame", "uv": [0, 0, 1, 10] },
+                "up": { "texture": "#frame", "uv": [0, 0, 10, 1] },
+                "down": { "texture": "#frame", "uv": [0, 0, 10, 1] }
+            }
+        }
+    ],
+    "groups": [
+        {
+            "name": "screen",
+            "origin": [8, 8, 8],
+            "children": [0, 1]
+        }
+    ]
 }

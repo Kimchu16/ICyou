@@ -2,6 +2,8 @@ package com.matissjurevics.icyou.remote;
 
 import com.matissjurevics.icyou.camera.CameraBlock;
 import com.matissjurevics.icyou.registry.ModDataComponentTypes;
+import com.matissjurevics.icyou.screen.ScreenBlock;
+import com.matissjurevics.icyou.screen.ScreenBlockEntity;
 import com.matissjurevics.icyou.terminal.CameraTerminalBlock;
 import com.matissjurevics.icyou.terminal.CameraTerminalBlockEntity;
 import net.minecraft.entity.player.PlayerEntity;
@@ -11,6 +13,7 @@ import net.minecraft.item.ItemUsageContext;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 
 /**
@@ -38,6 +41,30 @@ public class SetupRemoteItem extends Item {
                     player.sendMessage(Text.literal(
                             "Camera linked at " + formatPos(pos)), true);
                 }
+            }
+            return ActionResult.SUCCESS;
+        }
+
+        // --- Bind the carried camera to a screen ---
+        if (world.getBlockState(pos).getBlock() instanceof ScreenBlock
+                && world.getBlockEntity(pos) instanceof ScreenBlockEntity screen) {
+            if (!world.isClient) {
+                BlockPos carried = stack.get(ModDataComponentTypes.LINKED_CAMERA);
+                if (player == null) {
+                    return ActionResult.PASS;
+                }
+                if (carried == null) {
+                    player.sendMessage(Text.literal(
+                            "No camera linked — use the remote on a camera first."), false);
+                    return ActionResult.FAIL;
+                }
+                Direction camFacing = Direction.NORTH;
+                if (world.getBlockState(carried).contains(CameraBlock.FACING)) {
+                    camFacing = world.getBlockState(carried).get(CameraBlock.FACING);
+                }
+                screen.bind(carried.toImmutable(), camFacing);
+                stack.remove(ModDataComponentTypes.LINKED_CAMERA);
+                player.sendMessage(Text.literal("Camera bound to screen"), false);
             }
             return ActionResult.SUCCESS;
         }

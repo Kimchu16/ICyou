@@ -1,6 +1,7 @@
 package com.matissjurevics.icyou.registry;
 
 import com.matissjurevics.icyou.ICyouMod;
+import com.matissjurevics.icyou.screen.ScreenBlockEntity;
 import com.matissjurevics.icyou.terminal.CameraTerminalBlockEntity;
 import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
 import net.minecraft.block.entity.BlockEntityType;
@@ -18,8 +19,15 @@ public final class ModBlockEntities {
                             CameraTerminalBlockEntity::new, ModBlocks.CAMERA_TERMINAL)
                     .build();
 
+    public static final BlockEntityType<ScreenBlockEntity> SCREEN =
+            FabricBlockEntityTypeBuilder.create(
+                            ScreenBlockEntity::new, ModBlocks.SCREEN)
+                    .build();
+
     public static void register() {
         Registry.register(Registries.BLOCK_ENTITY_TYPE,
                 Identifier.of(ICyouMod.MOD_ID, "camera_terminal"), CAMERA_TERMINAL);
+        Registry.register(Registries.BLOCK_ENTITY_TYPE,
+                Identifier.of(ICyouMod.MOD_ID, "screen"), SCREEN);
     }
 }
