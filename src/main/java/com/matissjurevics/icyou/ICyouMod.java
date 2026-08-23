@@ -38,6 +38,16 @@ public class ICyouMod implements ModInitializer {
                     .strength(2.5f, 3.0f)
     );
 
+    // Security/devices (no functionality yet).
+    public static final Block CAMERA_BLOCK = new Block(
+            Block.Settings.create().strength(2.0f, 2.0f));
+    public static final Block CAMERA_TERMINAL_BLOCK = new Block(
+            Block.Settings.create().strength(2.0f, 2.0f));
+    public static final Block SCREEN_BLOCK = new Block(
+            Block.Settings.create().strength(2.0f, 2.0f));
+    public static final Item PORTABLE_SCREEN = new Item(new Item.Settings());
+    public static final Item SETUP_REMOTE = new Item(new Item.Settings());
+
     // The dedicated creative tab that holds every block/feature added by this mod.
     public static final RegistryKey<ItemGroup> ICYOU_ITEM_GROUP_KEY =
             RegistryKey.of(RegistryKeys.ITEM_GROUP, Identifier.of(MOD_ID, "main"));
@@ -54,6 +64,23 @@ public class ICyouMod implements ModInitializer {
         Registry.register(Registries.ITEM, Identifier.of(MOD_ID, "glacier_block"),
                 new BlockItem(GLACIER_BLOCK, new Item.Settings()));
 
+        // --- Register the security blocks (no functionality yet) ---
+        Registry.register(Registries.BLOCK, Identifier.of(MOD_ID, "camera"), CAMERA_BLOCK);
+        Registry.register(Registries.BLOCK, Identifier.of(MOD_ID, "camera_terminal"), CAMERA_TERMINAL_BLOCK);
+        Registry.register(Registries.BLOCK, Identifier.of(MOD_ID, "screen"), SCREEN_BLOCK);
+
+        // --- Register the security blocks' items ---
+        Registry.register(Registries.ITEM, Identifier.of(MOD_ID, "camera"),
+                new BlockItem(CAMERA_BLOCK, new Item.Settings()));
+        Registry.register(Registries.ITEM, Identifier.of(MOD_ID, "camera_terminal"),
+                new BlockItem(CAMERA_TERMINAL_BLOCK, new Item.Settings()));
+        Registry.register(Registries.ITEM, Identifier.of(MOD_ID, "screen"),
+                new BlockItem(SCREEN_BLOCK, new Item.Settings()));
+
+        // --- Register the standalone items ---
+        Registry.register(Registries.ITEM, Identifier.of(MOD_ID, "portable_screen"), PORTABLE_SCREEN);
+        Registry.register(Registries.ITEM, Identifier.of(MOD_ID, "setup_remote"), SETUP_REMOTE);
+
         // --- Register a dedicated creative tab containing all blocks from this mod ---
         Registry.register(Registries.ITEM_GROUP, ICYOU_ITEM_GROUP_KEY,
                 FabricItemGroup.builder()
@@ -62,6 +89,11 @@ public class ICyouMod implements ModInitializer {
                         .entries((context, entries) -> {
                             entries.add(ICY_BLOCK);
                             entries.add(GLACIER_BLOCK);
+                            entries.add(CAMERA_BLOCK);
+                            entries.add(CAMERA_TERMINAL_BLOCK);
+                            entries.add(SCREEN_BLOCK);
+                            entries.add(PORTABLE_SCREEN);
+                            entries.add(SETUP_REMOTE);
                         })
                         .build());
 
