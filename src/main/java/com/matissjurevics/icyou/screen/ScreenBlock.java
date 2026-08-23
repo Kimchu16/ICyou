@@ -25,6 +25,9 @@ import net.minecraft.world.World;
 
 import com.matissjurevics.icyou.client.render.RttFeedManager;
 import com.matissjurevics.icyou.registry.ModBlockEntities;
+import com.matissjurevics.icyou.terminal.DeviceRegistry;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 
 /**
  * A passive display panel: pairs with the nearest camera terminal and renders
@@ -99,6 +102,14 @@ public class ScreenBlock extends Block implements BlockEntityProvider {
     }
 
     @Override
+    public BlockState onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
+        if (!world.isClient) {
+            DeviceRegistry.get((ServerWorld) world).removeScreen(pos);
+        }
+        return super.onBreak(world, pos, state, player);
+    }
+
+    @Override
     protected ActionResult onUse(BlockState state, World world, BlockPos pos,
                                  PlayerEntity player, BlockHitResult hit) {
         // Passive display — right-click just reports pairing status.
@@ -109,9 +120,8 @@ public class ScreenBlock extends Block implements BlockEntityProvider {
                         true);
             } else {
                 player.sendMessage(Text.literal(
-                        "No feed — place a camera terminal within "
-                                + ScreenBlockEntity.PAIR_RANGE + " blocks and link cameras to it."),
-                        true);
+                        "No feed — link this screen to a terminal with the Setup Remote,"
+                                + " then assign a camera in the terminal GUI."), true);
             }
         }
         return ActionResult.SUCCESS;

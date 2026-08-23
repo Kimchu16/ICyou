@@ -1,9 +1,8 @@
 package com.matissjurevics.icyou.terminal;
 
-import java.util.List;
-
 import com.matissjurevics.icyou.camera.CameraViews;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import com.matissjurevics.icyou.network.DeviceSubscriptions;
+
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockEntityProvider;
 import net.minecraft.block.BlockState;
@@ -14,6 +13,8 @@ import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.DirectionProperty;
 import net.minecraft.text.Text;
@@ -27,9 +28,11 @@ import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+
 /**
- * The security hub — a laptop-style terminal. Owns the camera list; screens
- * pair to it and display the camera selected here.
+ * The security hub — a laptop-style terminal. Right-click opens the device
+ * management GUI; sneak-click prints a status report.
  */
 public class CameraTerminalBlock extends Block implements BlockEntityProvider {
 
@@ -51,7 +54,6 @@ public class CameraTerminalBlock extends Block implements BlockEntityProvider {
 
     @Override
     public BlockState getPlacementState(ItemPlacementContext ctx) {
-        // Screen faces the player when placed.
         return getDefaultState().with(FACING, ctx.getPlayerLookDirection().getOpposite());
     }
 
@@ -82,31 +84,30 @@ public class CameraTerminalBlock extends Block implements BlockEntityProvider {
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state,
                                                                  BlockEntityType<T> type) {
-        return null; // terminals don't tick yet
+        return null;
     }
 
     @Override
     protected ActionResult onUse(BlockState state, World world, BlockPos pos,
                                  PlayerEntity player, BlockHitResult hit) {
-        if (!world.isClient && world.getBlockEntity(pos) instanceof CameraTerminalBlockEntity terminal) {
-            if (terminal.getCount() == 0) {
-                player.sendMessage(Text.literal("No cameras linked."), false);
-                return ActionResult.SUCCESS;
-            }
-
-            // Sneak-use prints the full status report; plain use cycles channels.
-            if (player.isSneaking()) {
-                player.sendMessage(Text.literal("── ICyou LIVE ──"), false);
-                int index = 1;
-                for (BlockPos camera : terminal.getCameras()) {
-                    player.sendMessage(CameraViews.describe(world, camera, index++), false);
-                }
-            } else {
-                CameraTerminalBlockEntity.BoundCamera current = terminal.cycleSelected(world);
-                player.sendMessage(Text.literal(String.format("Switched to CAM %d/%d [%s]",
-                        current.index(), current.count(), current.facing().asString())), true);
-            }
+        if (world.isClient) {
+            return ActionResult.SUCCESS;
         }
+        ServerWorld serverWorld = (ServerWorld) world;
+
+        if (player.isSneaking()) {
+            player.sendMessage(Text.literal("── ICyou LIVE ──"), false);
+            int index = 1;
+            for (BlockPos camera : new CameraTerminalBlockEntity(pos, state)
+                    .getCameras(serverWorld)) {
+                player.sendMessage(CameraViews.describe(world, camera, index++), false);
+            }
+            return ActionResult.SUCCESS;
+        }
+
+        DeviceSubscriptions.subscribe(pos, player.getUuid());
+        ServerPlayNetworking.send((ServerPlayerEntity) player,
+                DeviceSubscriptions.buildSnapshot(serverWorld, pos, true));
         return ActionResult.SUCCESS;
     }
 }

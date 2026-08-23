@@ -4,9 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.matissjurevics.icyou.ICyouMod;
-import com.matissjurevics.icyou.client.CameraViewController;
+import com.matissjurevics.icyou.client.gui.TerminalGuiScreen;
+import com.matissjurevics.icyou.client.hud.WirelessHud;
 import com.matissjurevics.icyou.client.render.RttFeedManager;
 import com.matissjurevics.icyou.client.render.ScreenFeedRenderer;
+import com.matissjurevics.icyou.network.DeviceSnapshotS2CPayload;
 import com.matissjurevics.icyou.network.EnterCameraViewS2CPayload;
 import com.matissjurevics.icyou.network.FeedDataS2CPayload;
 import com.matissjurevics.icyou.registry.ModBlockEntities;
@@ -19,9 +21,8 @@ import net.fabricmc.fabric.api.client.rendering.v1.BlockEntityRendererRegistry;
 import net.minecraft.client.MinecraftClient;
 
 /**
- * Client-only entrypoint. Everything that touches rendering, GUIs or other
- * {@code net.minecraft.client} classes must live below this package so the
- * mod keeps working on dedicated servers.
+ * Client-only entrypoint. Rendering, GUIs and HUDs live below this package so
+ * the mod keeps working on dedicated servers.
  */
 public class ICyouClient implements ClientModInitializer {
 
@@ -30,7 +31,7 @@ public class ICyouClient implements ClientModInitializer {
         BlockEntityRendererRegistry.register(
                 ModBlockEntities.SCREEN, ScreenFeedRenderer::new);
 
-        // Live feed snapshots for screen panels.
+        // Live feed frames for screen panels.
         ClientPlayNetworking.registerGlobalReceiver(FeedDataS2CPayload.ID, (payload, context) -> {
             MinecraftClient client = MinecraftClient.getInstance();
             client.execute(() -> {
@@ -51,7 +52,20 @@ public class ICyouClient implements ClientModInitializer {
                             CameraViewController.begin(refs));
                 });
 
+        // Device snapshots: refresh cache, open GUI when requested.
+        ClientPlayNetworking.registerGlobalReceiver(DeviceSnapshotS2CPayload.ID,
+                (payload, context) -> {
+                    MinecraftClient client = MinecraftClient.getInstance();
+                    client.execute(() -> {
+                        ClientDeviceCache.update(payload);
+                        if (payload.openGui() && client.currentScreen == null) {
+                            client.setScreen(new TerminalGuiScreen(payload));
+                        }
+                    });
+                });
+
         CameraViewController.init();
+        WirelessHud.init();
         ClientTickEvents.END_CLIENT_TICK.register(RttFeedManager::tick);
 
         ICyouMod.LOGGER.info("ICyou client initialized");

@@ -12,7 +12,11 @@ import net.minecraft.util.BlockRotation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.shape.VoxelShape;
+import com.matissjurevics.icyou.terminal.DeviceRegistry;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
 
 /**
  * A wall-mountable security camera. The {@code facing} property indicates which
@@ -51,6 +55,14 @@ public class CameraBlock extends Block {
     @Override
     protected BlockState mirror(BlockState state, BlockMirror mirror) {
         return state.rotate(mirror.getRotation(state.get(FACING)));
+    }
+
+    @Override
+    public BlockState onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
+        if (!world.isClient) {
+            DeviceRegistry.get((ServerWorld) world).removeCamera(pos);
+        }
+        return super.onBreak(world, pos, state, player);
     }
 
     @Override
