@@ -2,16 +2,8 @@
 # attaches the built jar to a GitHub Release so it can be downloaded and
 # uploaded to CurseForge.
 #
-# Two ways to publish to CurseForge:
-#   1. (Manual - always works) Download the jar from the generated GitHub
-#      Release and upload it on the CurseForge website. Follow the steps in
-#      RELEASE_CURSEFORGE.md.
-#   2. (Automated - optional) The "Upload to CurseForge" step below pushes the
-#      file straight to CurseForge using the CurseForge API. Only runs when a
-#      tag is pushed AND the following repository secrets are set:
-#        - CURSEFORGE_API_TOKEN   (CurseForge API key with file-upload access)
-#        - CURSEFORGE_PROJECT_ID  (numeric CurseForge project id of this mod)
-#      If you don't set them, this step is skipped and you use path (1).
+# To publish to CurseForge: download the jar from the generated GitHub Release
+# and upload it on the CurseForge website (see RELEASE_CURSEFORGE.md).
 
 name: Build and Release
 
@@ -37,10 +29,6 @@ jobs:
   build:
     name: Build mod
     runs-on: ubuntu-latest
-    env:
-      # Referenced via env so we can safely check them in an `if` condition.
-      CURSEFORGE_API_TOKEN: ${{ secrets.CURSEFORGE_API_TOKEN }}
-      CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -93,15 +81,3 @@ jobs:
           name: ICyou ${{ steps.jar.outputs.name }}
           generate_release_notes: true
 
-      - name: Upload to CurseForge (optional)
-        if: startsWith(github.ref, 'refs/tags/') && env.CURSEFORGE_API_TOKEN != '' && env.CURSEFORGE_PROJECT_ID != ''
-        uses: TimotheeK/CurseForge-Uploader@v3
-        with:
-          token: ${{ env.CURSEFORGE_API_TOKEN }}
-          project_id: ${{ env.CURSEFORGE_PROJECT_ID }}
-          game_endpoints: minecraft
-          game_versions: "1.21.1"
-          file_path: ${{ steps.jar.outputs.path }}
-          changelog_type: markdown
-          display_name: ICyou ${{ steps.jar.outputs.name }}
-          release_type: release

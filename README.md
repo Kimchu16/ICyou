@@ -53,9 +53,6 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-Optionally, the workflow can auto-upload directly to CurseForge instead. Set the
-`CURSEFORGE_API_TOKEN` and `CURSEFORGE_PROJECT_ID` repository secrets to enable it.
-
 ## Mod details
 
 - **Mod ID:** `icyou`
