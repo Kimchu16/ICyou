@@ -36,6 +36,23 @@ This is a standard Fabric Loom project using the bundled Gradle 8.9 wrapper (Jav
 
 The built mod jar is produced at `build/libs/`.
 
+## Continuous Integration & Releases
+
+A GitHub Actions workflow (`.github/workflows/build.yml`) builds the mod every
+push. When you push a version tag like `v1.0.0`, it:
+
+1. Builds `icyou-<version>.jar` (the version is taken from the tag).
+2. Attaches the jar to a **GitHub Release** so it can be downloaded and
+   uploaded to [CurseForge](https://authors.curseforge.com) (see
+   `RELEASE_CURSEFORGE.md`).
+
+To create a release, tag the commit and push:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
 ## Mod details
 
 - **Mod ID:** `icyou`

@@ -1,0 +1,83 @@
+# Builds the ICyou Fabric mod and, when a version tag (e.g. v1.0.0) is pushed,
+# attaches the built jar to a GitHub Release so it can be downloaded and
+# uploaded to CurseForge.
+#
+# To publish to CurseForge: download the jar from the generated GitHub Release
+# and upload it on the CurseForge website (see RELEASE_CURSEFORGE.md).
+
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build mod
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle (with cache)
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build mod
+        shell: bash
+        run: |
+          chmod +x gradlew
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            # Match the built artifact name to the tag (v1.0.0 -> 1.0.0).
+            ./gradlew build -Pmod_version="${GITHUB_REF_NAME#v}" --no-daemon
+          else
+            ./gradlew build --no-daemon
+          fi
+
+      - name: Locate release jar
+        id: jar
+        shell: bash
+        run: |
+          # Pick the main jar (skip the -sources jar).
+          RELEASE_JAR="$(ls build/libs/*.jar | grep -v -- '-sources' | head -n1)"
+          if [[ -z "$RELEASE_JAR" ]]; then
+            echo "::error::No release jar found in build/libs/"
+            exit 1
+          fi
+          echo "path=${RELEASE_JAR}" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "${RELEASE_JAR}")" >> "$GITHUB_OUTPUT"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: icyou-${{ github.sha }}
+          path: build/libs/*.jar
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.jar.outputs.path }}
+          name: ICyou ${{ steps.jar.outputs.name }}
+          generate_release_notes: true
+
