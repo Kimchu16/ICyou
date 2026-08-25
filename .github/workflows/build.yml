@@ -1,9 +1,13 @@
-# Builds the ICyou Fabric mod and, when a version tag (e.g. v1.0.0) is pushed,
-# attaches the built jar to a GitHub Release so it can be downloaded and
-# uploaded to CurseForge.
+# Builds the ICyou Fabric mod and, when a version tag (e.g. v1.0.0) is pushed:
+#   1. Attaches the built jar to a GitHub Release.
+#   2. Auto-uploads the jar to CurseForge when the CURSEFORGE_API_TOKEN and
+#      CURSEFORGE_PROJECT_ID repository secrets are configured.
 #
-# To publish to CurseForge: download the jar from the generated GitHub Release
-# and upload it on the CurseForge website (see RELEASE_CURSEFORGE.md).
+# The CurseForge step is skipped (and never blocks the build) if either secret
+# is missing, so this workflow is safe to run before you've set them up. To
+# enable auto-upload, create the project on CurseForge, generate an API token
+# at https://authors.curseforge.com, then add those two secrets. See
+# RELEASE_CURSEFORGE.md.
 
 name: Build and Release
 
@@ -29,9 +33,16 @@ jobs:
   build:
     name: Build mod
     runs-on: ubuntu-latest
+    env:
+      # References env vars (not secrets) so they can be checked in an `if`.
+      # They read as '' when unset, which safely skips the CurseForge step.
+      CURSEFORGE_API_TOKEN: ${{ secrets.CURSEFORGE_API_TOKEN }}
+      CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -80,4 +91,38 @@ jobs:
           files: ${{ steps.jar.outputs.path }}
           name: ICyou ${{ steps.jar.outputs.name }}
           generate_release_notes: true
+
+      - name: Generate CurseForge changelog
+        if: startsWith(github.ref, 'refs/tags/')
+        id: changelog
+        shell: bash
+        run: |
+          {
+            echo "## ICyou ${GITHUB_REF_NAME#v}"
+            echo
+            PREV="$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)"
+            if [[ -n "$PREV" ]]; then
+              git log --oneline "${PREV}..${GITHUB_REF_NAME}"
+            else
+              git log --oneline -20
+            fi
+          } > CHANGELOG.md
+          echo "changelog<<CFEOF" >> "$GITHUB_OUTPUT"
+          cat CHANGELOG.md >> "$GITHUB_OUTPUT"
+          echo "CFEOF" >> "$GITHUB_OUTPUT"
+
+      - name: Upload to CurseForge
+        if: startsWith(github.ref, 'refs/tags/') && env.CURSEFORGE_API_TOKEN != '' && env.CURSEFORGE_PROJECT_ID != ''
+        uses: itsmeow/curseforge-upload@v3
+        with:
+          token: ${{ env.CURSEFORGE_API_TOKEN }}
+          project_id: ${{ env.CURSEFORGE_PROJECT_ID }}
+          game_endpoint: minecraft
+          file_path: ${{ steps.jar.outputs.path }}
+          changelog: ${{ steps.changelog.outputs.changelog }}
+          changelog_type: markdown
+          display_name: ICyou ${{ steps.jar.outputs.name }}
+          game_versions: "${{ vars.CF_GAME_VERSIONS || 'Minecraft 1.21.1:1.21.1,Java 21,Fabric' }}"
+          release_type: release
+          relations: fabric-api:requiredDependency
 
