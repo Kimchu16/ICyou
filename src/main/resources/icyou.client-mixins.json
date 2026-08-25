@@ -4,7 +4,10 @@
     "package": "com.matissjurevics.icyou.client.mixin",
     "compatibilityLevel": "JAVA_21",
     "client": [
-        "CameraMixin"
+        "CameraMixin",
+        "GameRendererMixin",
+        "MinecraftClientMixin",
+        "WorldRendererMixin"
     ],
     "injectors": {
         "defaultRequire": 1

@@ -33,11 +33,13 @@ import org.joml.Matrix4f;
 public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity> {
 
     private static final DirectionProperty FACING_PROP = ScreenBlock.FACING;
+    private static final int FULL_BRIGHT = 0xF000F0;
 
     private static final float PANEL_HALF = 0.5f;     // full-block face (16x16 panel)
-    // The north-facing model is wall-anchored at z=16 and its display face is
-    // z=12.65. Relative to block centre, this sits just proud of that face.
-    private static final float FACE_OFFSET = 0.289625f;
+    // The model's glass face is at local z=12.65/16 (0.290625 from centre).
+    // Give the dynamic surface a visible depth gap; a near-coplanar quad loses
+    // the depth test to the baked blue face, especially at oblique angles.
+    private static final float FACE_OFFSET = 0.27f;
     private static final int GRID = 10;                // static cells per row/column
 
     private final TextRenderer textRenderer;
@@ -49,6 +51,10 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
     @Override
     public void render(ScreenBlockEntity blockEntity, float tickDelta, MatrixStack matrices,
                        VertexConsumerProvider vertexConsumers, int light, int overlay) {
+        // A camera pass can see screens. Never sample an FBO while rendering to it.
+        if (RttFeedManager.isRenderingFeed()) {
+            return;
+        }
         boolean hasSignal = blockEntity.isReceiving();
 
         matrices.push();
@@ -69,20 +75,21 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
                 VertexConsumer vc = vertexConsumers.getBuffer(
                         RenderLayer.getEntityTranslucent(texId));
                 Matrix4f m4 = matrices.peek().getPositionMatrix();
-                MatrixStack.Entry entry = matrices.peek();
                 float h = PANEL_HALF;
-                float z = FACE_OFFSET - 0.0015f;
+                float z = FACE_OFFSET;
+                // The display is viewed from local -Z. Keep the winding and
+                // normal pointed that way so the render layer does not cull it.
                 vc.vertex(m4, -h,  h, z).color(255, 255, 255, 255)
-                        .texture(0, 0).overlay(OverlayTexture.DEFAULT_UV).light(light)
-                        .normal(0, 0, -1);
-                vc.vertex(m4, -h, -h, z).color(255, 255, 255, 255)
-                        .texture(0, 1).overlay(OverlayTexture.DEFAULT_UV).light(light)
-                        .normal(0, 0, -1);
-                vc.vertex(m4,  h, -h, z).color(255, 255, 255, 255)
-                        .texture(1, 1).overlay(OverlayTexture.DEFAULT_UV).light(light)
+                        .texture(0, 0).overlay(OverlayTexture.DEFAULT_UV).light(FULL_BRIGHT)
                         .normal(0, 0, -1);
                 vc.vertex(m4,  h,  h, z).color(255, 255, 255, 255)
-                        .texture(1, 0).overlay(OverlayTexture.DEFAULT_UV).light(light)
+                        .texture(1, 0).overlay(OverlayTexture.DEFAULT_UV).light(FULL_BRIGHT)
+                        .normal(0, 0, -1);
+                vc.vertex(m4,  h, -h, z).color(255, 255, 255, 255)
+                        .texture(1, 1).overlay(OverlayTexture.DEFAULT_UV).light(FULL_BRIGHT)
+                        .normal(0, 0, -1);
+                vc.vertex(m4, -h, -h, z).color(255, 255, 255, 255)
+                        .texture(0, 1).overlay(OverlayTexture.DEFAULT_UV).light(FULL_BRIGHT)
                         .normal(0, 0, -1);
             }
         } else {
@@ -95,18 +102,18 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
             String channel = blockEntity.getLastCount() > 1
                     ? blockEntity.getLastIndex() + "/" + blockEntity.getLastCount()
                     : "";
-            drawText(matrices, vertexConsumers, light,
+            drawText(matrices, vertexConsumers, FULL_BRIGHT,
                     Text.literal("CAM " + channel + " [" + camDir + "]").formatted(Formatting.GREEN),
                     PANEL_HALF * 0.55f, 0.06f, 0xFF60FF60);
         } else {
-            drawText(matrices, vertexConsumers, light,
+            drawText(matrices, vertexConsumers, FULL_BRIGHT,
                     Text.literal("NO SIGNAL"), -0.09f, 0.06f, 0xFFFF5050);
         }
 
         // Blinking LIVE marker.
         long frame = StylizedFeed.INSTANCE.frame();
         if (frame % 20 < 14) {
-            drawText(matrices, vertexConsumers, light,
+            drawText(matrices, vertexConsumers, FULL_BRIGHT,
                     Text.literal("LIVE"), -0.015f, -0.115f,
                     frame % 40 < 20 ? 0xFFFF3030 : 0xFF902020);
         }
@@ -156,8 +163,11 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
                           int light, Text text, float x, float y, int argb) {
         matrices.push();
         float scale = 0.0105f;
-        matrices.translate(x, y, FACE_OFFSET - 0.002f);
-        matrices.scale(scale, scale, scale);
+        matrices.translate(x, y, FACE_OFFSET - 0.001f);
+        // This face exposes TextRenderer's back, so mirror only its X axis.
+        // A 180-degree Y rotation also reverses its depth-facing side and can
+        // make the labels disappear behind the panel.
+        matrices.scale(-scale, scale, scale);
         Matrix4f positionMatrix = matrices.peek().getPositionMatrix();
         textRenderer.draw(text, -textRenderer.getWidth(text) / 2f, -4f, argb,
                 false, positionMatrix, vertexConsumers,
@@ -171,9 +181,9 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
         Matrix4f matrix = matrices.peek().getPositionMatrix();
         float z = FACE_OFFSET;
         buffer.vertex(matrix, x1, y1, z).color(r, g, b, 255);
-        buffer.vertex(matrix, x2, y1, z).color(r, g, b, 255);
-        buffer.vertex(matrix, x2, y2, z).color(r, g, b, 255);
         buffer.vertex(matrix, x1, y2, z).color(r, g, b, 255);
+        buffer.vertex(matrix, x2, y2, z).color(r, g, b, 255);
+        buffer.vertex(matrix, x2, y1, z).color(r, g, b, 255);
     }
 
     private static float yawDegrees(Direction facing) {

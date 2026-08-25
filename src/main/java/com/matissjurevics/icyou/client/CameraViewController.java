@@ -83,7 +83,9 @@ public final class CameraViewController {
 
         float[] saved = REMEMBERED_ANGLES.get(camPos);
         viewYaw = saved != null ? saved[0] : yawFor(camFacing);
-        viewPitch = saved != null ? saved[1] : -20.0f;
+        // Horizontal cameras begin level with their block-facing direction.
+        // Mouse tilt is still remembered after the user adjusts the view.
+        viewPitch = saved != null ? saved[1] : pitchFor(camFacing);
 
         if (!isActive()) {
             // Fresh entry: freeze the player's body where they stand.
@@ -217,6 +219,14 @@ public final class CameraViewController {
             case NORTH -> 180.0f;   // MC yaw 0 = south
             case EAST -> -90.0f;
             case WEST -> 90.0f;
+            default -> 0.0f;
+        };
+    }
+
+    private static float pitchFor(Direction facing) {
+        return switch (facing) {
+            case UP -> -90.0f;
+            case DOWN -> 90.0f;
             default -> 0.0f;
         };
     }

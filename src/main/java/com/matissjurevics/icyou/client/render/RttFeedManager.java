@@ -1,338 +1,354 @@
 package com.matissjurevics.icyou.client.render;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.HashMap;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.matissjurevics.icyou.ICyouMod;
-import com.matissjurevics.icyou.camera.CameraViews;
 import com.matissjurevics.icyou.screen.ScreenBlockEntity;
+import com.mojang.blaze3d.systems.RenderSystem;
 
-import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.gl.SimpleFramebuffer;
-import net.minecraft.client.render.OverlayTexture;
-import net.minecraft.client.render.RenderLayers;
+import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.GameRenderer;
+import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.model.BakedModel;
-import net.minecraft.client.texture.NativeImage;
-import net.minecraft.client.texture.NativeImageBackedTexture;
+import net.minecraft.client.render.entity.EntityRenderDispatcher;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.Entity;
+import net.minecraft.client.texture.AbstractTexture;
+import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.random.Random;
-import net.minecraft.world.World;
 
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.lwjgl.opengl.GL11;
 
 /**
- * True render-to-texture feeds: every tick, ONE paired screen gets its frame
- * refreshed — living entities near that screen's selected camera are rendered
- * (with their real models/skins) from the camera's pose into a small offscreen
- * framebuffer, read back to CPU, and published as a dynamic texture the screen
- * BER draws onto the panel.
- *
- * <p>Round-robin keeps GPU cost flat regardless of how many screens exist.
- * Terrain is intentionally not rendered (dark CCTV backdrop instead) — adding
- * chunk geometry would require portal-engine-level second-pass machinery.</p>
+ * Renders security cameras with Minecraft's real {@link net.minecraft.client.render.WorldRenderer}
+ * into GPU framebuffers. One feed is shared by every screen assigned to the same camera.
  */
 public final class RttFeedManager {
 
     private RttFeedManager() {}
 
-    private static final int SIZE = 96;
-    private static final long STALE_MS = 2500;
-    private static final double VIEW_DISTANCE = 48.0;
+    private static final int WIDTH = 320;
+    private static final int HEIGHT = 180;
     private static final float FOV_DEGREES = 70.0f;
+    private static final long FRAME_INTERVAL_MS = 125L;
+    private static final long STALE_MS = 3000L;
+    private static final double SCREEN_VIEW_DISTANCE = 64.0;
     private static final int MAX_FAILURES = 5;
 
-    /** Block radius scanned for terrain around the camera. */
-    private static final int TERRAIN_RADIUS = 8;
-    /** Max blocks drawn per frame refresh (perf cap). */
-    private static final int TERRAIN_BLOCK_BUDGET = 350;
+    private static final Map<BlockPos, ScreenBlockEntity> SCREENS = new LinkedHashMap<>();
+    private static final Map<BlockPos, CameraFeed> FEEDS = new LinkedHashMap<>();
 
-    private static final class Channel {
-        final ScreenBlockEntity be;
-        final Identifier textureId;
-        final NativeImageBackedTexture texture;
-        final NativeImage image;
-        long lastUpdate;
-
-        Channel(ScreenBlockEntity be, Identifier textureId,
-                NativeImageBackedTexture texture, NativeImage image) {
-            this.be = be;
-            this.textureId = textureId;
-            this.texture = texture;
-            this.image = image;
-        }
-    }
-
-    /** Insertion-ordered so round-robin iteration is stable. */
-    private static final Map<BlockPos, Channel> CHANNELS = new LinkedHashMap<>();
-    private static SimpleFramebuffer framebuffer;
-    private static ByteBuffer pixelBuffer;
-    private static int failureCount;
+    private static boolean renderingFeed;
+    private static Framebuffer renderTarget;
     private static boolean disabled;
+    private static int failureCount;
 
-    /** Registers/refreshes a tracked screen. Called from the client ticker. */
-    public static void track(ScreenBlockEntity be) {
-        if (disabled || be.isRemoved() || CHANNELS.containsKey(be.getPos())) {
-            return;
+    private static final class CameraFeed {
+        final BlockPos cameraPos;
+        final Identifier textureId;
+        final SimpleFramebuffer framebuffer;
+        Direction facing;
+        long lastRender;
+
+        CameraFeed(MinecraftClient client, BlockPos cameraPos, Direction facing) {
+            this.cameraPos = cameraPos.toImmutable();
+            this.facing = facing;
+            this.framebuffer = new SimpleFramebuffer(
+                    WIDTH, HEIGHT, true, MinecraftClient.IS_SYSTEM_MAC);
+            this.framebuffer.setTexFilter(GL11.GL_LINEAR);
+            this.textureId = Identifier.of(ICyouMod.MOD_ID,
+                    "camera_feed_" + Long.toUnsignedString(cameraPos.asLong()));
+            client.getTextureManager().registerTexture(textureId,
+                    new FramebufferTexture(framebuffer.getColorAttachment()));
         }
-        MinecraftClient client = MinecraftClient.getInstance();
-        Identifier id = Identifier.of(ICyouMod.MOD_ID, "rtt_" + be.getPos().asLong());
-        NativeImage image = new NativeImage(NativeImage.Format.RGBA, SIZE, SIZE, true);
-        NativeImageBackedTexture texture = new NativeImageBackedTexture(image);
-        client.getTextureManager().registerTexture(id, texture);
-        CHANNELS.put(be.getPos(), new Channel(be, id, texture, image));
+
+        void close(MinecraftClient client) {
+            client.getTextureManager().destroyTexture(textureId);
+            framebuffer.delete();
+        }
     }
 
-    /** Round-robin refresh: one screen per tick. */
+    /** Texture-manager adapter for an FBO-owned color attachment. */
+    private static final class FramebufferTexture extends AbstractTexture {
+        FramebufferTexture(int colorAttachment) {
+            this.glId = colorAttachment;
+        }
+
+        @Override
+        public void load(ResourceManager manager) throws IOException {
+            // The framebuffer has already allocated and populated this texture.
+        }
+
+        @Override
+        public void clearGlId() {
+            // TextureManager removes its reference; the framebuffer owns deletion.
+            this.glId = -1;
+        }
+    }
+
+    /** Exposes Camera's protected pose setters for the independent feed camera. */
+    private static final class FeedCamera extends Camera {
+        void configure(MinecraftClient client, Vec3d pos, float yaw, float pitch,
+                       float tickDelta) {
+            // Camera requires a focused entity, so reuse the local player for
+            // initialization. Mark this as an external camera: vanilla omits
+            // the focused entity from a first-person pass, which otherwise
+            // makes the player standing in front of the security camera vanish.
+            update(client.world, client.player, true, false, tickDelta);
+            setPos(pos);
+            setRotation(yaw, pitch);
+        }
+    }
+
+    /** Called by each loaded screen's client block-entity ticker. */
+    public static void track(ScreenBlockEntity screen) {
+        if (!disabled && !screen.isRemoved()) {
+            SCREENS.put(screen.getPos().toImmutable(), screen);
+        }
+    }
+
+    /** Lightweight lifecycle cleanup; rendering itself is frame-driven. */
     public static void tick(MinecraftClient client) {
-        if (disabled || client.world == null || CHANNELS.isEmpty()) {
+        if (client.world == null) {
+            clear(client);
+            return;
+        }
+        pruneScreens(client);
+    }
+
+    /** Called by GameRendererMixin once per normal world-rendered frame. */
+    public static void renderFrame(MinecraftClient client, GameRenderer gameRenderer,
+                                   RenderTickCounter tickCounter) {
+        if (disabled || renderingFeed || client.world == null || client.player == null) {
             return;
         }
 
-        // Prune dead entries.
-        Iterator<Map.Entry<BlockPos, Channel>> it = CHANNELS.entrySet().iterator();
-        while (it.hasNext()) {
-            Channel ch = it.next().getValue();
-            if (ch.be.isRemoved() || ch.be.getWorld() != client.world) {
-                client.getTextureManager().destroyTexture(ch.textureId);
-                it.remove();
+        pruneScreens(client);
+        Map<BlockPos, Direction> active = collectActiveCameras(client);
+        reconcileFeeds(client, active);
+        if (active.isEmpty()) {
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        CameraFeed next = active.entrySet().stream()
+                .map(entry -> FEEDS.computeIfAbsent(entry.getKey(), key ->
+                        new CameraFeed(client, key, entry.getValue())))
+                .peek(feed -> feed.facing = active.get(feed.cameraPos))
+                .filter(feed -> now - feed.lastRender >= FRAME_INTERVAL_MS)
+                .min(Comparator.comparingLong(feed -> feed.lastRender))
+                .orElse(null);
+        if (next != null) {
+            renderCamera(client, gameRenderer, tickCounter, next, now);
+        }
+    }
+
+    private static Map<BlockPos, Direction> collectActiveCameras(MinecraftClient client) {
+        Map<BlockPos, Direction> active = new LinkedHashMap<>();
+        double maxDistanceSq = SCREEN_VIEW_DISTANCE * SCREEN_VIEW_DISTANCE;
+        for (ScreenBlockEntity screen : SCREENS.values()) {
+            BlockPos camPos = screen.getLastCamPos();
+            if (camPos == null || screen.getWorld() != client.world
+                    || client.player.squaredDistanceTo(Vec3d.ofCenter(screen.getPos()))
+                    > maxDistanceSq) {
+                continue;
+            }
+            active.put(camPos.toImmutable(), Direction.byId(screen.getLastFacingId()));
+        }
+        return active;
+    }
+
+    private static void reconcileFeeds(MinecraftClient client,
+                                       Map<BlockPos, Direction> active) {
+        Set<BlockPos> retained = new HashSet<>(active.keySet());
+        Iterator<Map.Entry<BlockPos, CameraFeed>> iterator = FEEDS.entrySet().iterator();
+        while (iterator.hasNext()) {
+            CameraFeed feed = iterator.next().getValue();
+            if (!retained.contains(feed.cameraPos)) {
+                feed.close(client);
+                iterator.remove();
             }
         }
-        if (CHANNELS.isEmpty()) {
-            return;
-        }
-
-        // Round-robin: rotate once, then take the first eligible channel.
-        rotate();
-
-        Channel candidate = firstValue();
-        long minGap = STALE_MS / Math.max(1, CHANNELS.size());
-        if (candidate == null
-                || System.currentTimeMillis() - candidate.lastUpdate < minGap
-                || candidate.be.getLastCamPos() == null
-                || candidate.be.getWorld() != client.world
-                || client.player == null
-                || client.player.squaredDistanceTo(
-                        candidate.be.getPos().getX() + 0.5,
-                        candidate.be.getPos().getY() + 0.5,
-                        candidate.be.getPos().getZ() + 0.5)
-                        > VIEW_DISTANCE * VIEW_DISTANCE) {
-            return; // nothing eligible this tick
-        }
-        renderInto(client, candidate);
     }
 
-    private static void rotate() {
-        if (CHANNELS.isEmpty()) {
-            return;
-        }
-        Map.Entry<BlockPos, Channel> first = CHANNELS.entrySet().iterator().next();
-        CHANNELS.remove(first.getKey());
-        CHANNELS.put(first.getKey(), first.getValue());
-    }
+    private static void renderCamera(MinecraftClient client, GameRenderer gameRenderer,
+                                     RenderTickCounter tickCounter, CameraFeed feed,
+                                     long now) {
+        Matrix4f savedProjection = new Matrix4f(RenderSystem.getProjectionMatrix());
+        float tickDelta = tickCounter.getTickDelta(true);
+        FeedCamera camera = new FeedCamera();
+        Vec3d cameraPos = cameraPosition(feed.cameraPos, feed.facing);
+        camera.configure(client, cameraPos, yawFor(feed.facing), pitchFor(feed.facing),
+                tickDelta);
 
-    private static Channel firstValue() {
-        return CHANNELS.isEmpty() ? null : CHANNELS.values().iterator().next();
-    }
+        Matrix4f projection = new Matrix4f().perspective(
+                (float) Math.toRadians(FOV_DEGREES), (float) WIDTH / HEIGHT,
+                0.05f, gameRenderer.getFarPlaneDistance());
+        Quaternionf inverseRotation = camera.getRotation().conjugate(new Quaternionf());
+        Matrix4f view = new Matrix4f().rotation(inverseRotation);
 
-    private static void renderInto(MinecraftClient client, Channel channel) {
+        renderTarget = feed.framebuffer;
+        renderingFeed = true;
         try {
-            BlockPos camPos = channel.be.getLastCamPos();
-            Direction facing = Direction.byId(channel.be.getLastFacingId());
-            Vec3d origin = Vec3d.ofCenter(camPos)
-                    .add(new Vec3d(facing.getOffsetX(), 0, facing.getOffsetZ()).multiply(0.2))
-                    .add(0, -0.1, 0);
-            float yaw = switch (facing) {
-                case NORTH -> 180.0f;
-                case EAST -> -90.0f;
-                case WEST -> 90.0f;
-                default -> 0.0f;
-            };
-            float pitch = -20.0f;
+            feed.framebuffer.setClearColor(0.01f, 0.015f, 0.02f, 1.0f);
+            // Framebuffer.clear() binds and then unbinds its target internally.
+            // Bind for the world pass only after clearing, or the world is drawn
+            // to the default target while this texture remains black.
+            feed.framebuffer.clear(MinecraftClient.IS_SYSTEM_MAC);
+            feed.framebuffer.beginWrite(true);
+            gameRenderer.loadProjectionMatrix(projection);
 
-            ensureBuffers();
-
-            // --- render pass into the offscreen framebuffer ---
-            framebuffer.beginWrite(true);
-            framebuffer.setClearColor(0.01f, 0.04f, 0.02f, 1.0f);
-            framebuffer.clear(false);
-
-            MatrixStack matrices = new MatrixStack();
-            matrices.multiplyPositionMatrix(new Matrix4f()
-                    .perspective((float) Math.toRadians(FOV_DEGREES), 1.0f, 0.05f, 64.0f));
-            matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pitch));
-            matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(yaw + 180.0f));
-            matrices.translate(-origin.x, -origin.y, -origin.z);
-
-            renderTerrain(client, matrices, camPos, origin);
-            renderEntities(client, matrices, camPos, origin);
-
-            // --- read back and publish ---
-            pixelBuffer.clear();
-            GL11.glReadPixels(0, 0, SIZE, SIZE, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, pixelBuffer);
-            client.getFramebuffer().beginWrite(true); // restore main target
-
-            NativeImage img = channel.image;
-            for (int y = 0; y < SIZE; y++) {
-                int srcRow = (SIZE - 1 - y) * SIZE; // GL origin is bottom-left
-                for (int x = 0; x < SIZE; x++) {
-                    int i = (srcRow + x) * 4;
-                    int r = pixelBuffer.get(i) & 0xFF;
-                    int g = pixelBuffer.get(i + 1) & 0xFF;
-                    int b = pixelBuffer.get(i + 2) & 0xFF;
-                    int a = pixelBuffer.get(i + 3) & 0xFF;
-                    img.setColor(x, y, (a << 24) | (b << 16) | (g << 8) | r);
-                }
-            }
-            channel.texture.upload();
-            channel.lastUpdate = System.currentTimeMillis();
-        } catch (Throwable t) {
+            client.worldRenderer.setupFrustum(cameraPos, view, projection);
+            client.worldRenderer.render(tickCounter, false, camera, gameRenderer,
+                    gameRenderer.getLightmapTextureManager(), view, projection);
+            renderEntities(client, feed, camera, cameraPos, view, tickDelta);
+            feed.lastRender = now;
+            failureCount = 0;
+        } catch (Throwable error) {
             failureCount++;
-            ICyouMod.LOGGER.error("RTT feed render failed ({}/{})", failureCount, MAX_FAILURES, t);
-            try {
-                client.getFramebuffer().beginWrite(true);
-            } catch (Throwable ignored) {}
+            ICyouMod.LOGGER.error("Secondary camera render failed ({}/{}) for {}",
+                    failureCount, MAX_FAILURES, feed.cameraPos, error);
             if (failureCount >= MAX_FAILURES) {
                 disabled = true;
-                ICyouMod.LOGGER.warn("RTT feeds disabled after repeated failures.");
+                ICyouMod.LOGGER.warn("Secondary camera feeds disabled after repeated failures");
             }
+        } finally {
+            renderingFeed = false;
+            renderTarget = null;
+            feed.framebuffer.endWrite();
+            client.getFramebuffer().beginWrite(true);
+            gameRenderer.loadProjectionMatrix(savedProjection);
         }
     }
 
     /**
-     * Renders real block geometry around the camera: every non-air block
-     * within {@link #TERRAIN_RADIUS} is drawn with its baked model, actual
-     * textures, ambient occlusion and world lighting. Budget-capped.
+     * WorldRenderer's entity stage uses several vanilla render targets that are
+     * owned by the main player renderer. Draw loaded entities once more into the
+     * camera FBO so their normal models, animations, skins and equipment share
+     * the terrain depth buffer instead of disappearing from the feed.
      */
-    private static void renderTerrain(MinecraftClient client, MatrixStack matrices,
-                                      BlockPos camPos, Vec3d origin) {
-        var world = client.world;
-        var brm = client.getBlockRenderManager();
-        var consumers = client.getBufferBuilders().getEntityVertexConsumers();
-        Random random = Random.create();
-        int budget = TERRAIN_BLOCK_BUDGET;
+    private static void renderEntities(MinecraftClient client, CameraFeed feed,
+                                       FeedCamera camera, Vec3d cameraPos,
+                                       Matrix4f view, float tickDelta) {
+        // Vanilla's nested targets can leave a window-sized viewport active.
+        // Restore both the camera FBO and its 320x180 viewport before entities.
+        feed.framebuffer.beginWrite(true);
 
-        for (BlockPos p : BlockPos.iterateOutwards(camPos, TERRAIN_RADIUS, TERRAIN_RADIUS, TERRAIN_RADIUS)) {
-            if (budget <= 0) {
-                break;
-            }
-            if (p.equals(camPos)) {
-                continue;
-            }
-            BlockState state = world.getBlockState(p);
-            if (state.isAir() || allNeighboursSolid(world, p)) {
-                continue;
-            }
-            Vec3d rel = Vec3d.ofCenter(p).subtract(origin);
-            if (rel.lengthSquared() > CameraViews.RANGE * CameraViews.RANGE) {
-                continue;
-            }
-
-            matrices.push();
-            matrices.translate(p.getX() - origin.x, p.getY() - origin.y, p.getZ() - origin.z);
-            try {
-                BakedModel model = brm.getModel(state);
-                VertexConsumerProvider.Immediate consumers2 = consumers; // clarity
-                var vc = consumers2.getBuffer(RenderLayers.getBlockLayer(state));
-                brm.getModelRenderer().render(world, model, state, p, matrices, vc,
-                        false, random, state.getRenderingSeed(p), OverlayTexture.DEFAULT_UV);
-                budget--;
-            } catch (Throwable ignored) {
-                // a single unrenderable block must not kill the feed
-            } finally {
-                matrices.pop();
-            }
-        }
-    }
-
-    private static boolean allNeighboursSolid(World world, BlockPos p) {
-        for (Direction d : Direction.values()) {
-            if (!world.getBlockState(p.offset(d)).isOpaqueFullCube(world, p.offset(d))) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Renders every living entity inside the camera's range with its actual
-
-    /**
-     * Renders every living entity inside the camera's range with its actual
-     * renderer (skins, animations) at camera-relative coordinates.
-     */
-    private static void renderEntities(MinecraftClient client, MatrixStack matrices,
-                                       BlockPos camPos, Vec3d origin) {
-        float tickDelta = client.getRenderTickCounter().getTickDelta(false);
-        Vec3d forward = new Vec3d(0, 0, -1);
-        Box searchBox = new Box(camPos).expand(CameraViews.RANGE);
-
-        List<LivingEntity> entities = client.world.getEntitiesByClass(
-                LivingEntity.class, searchBox, e -> e != client.player && !e.isSpectator());
-
+        EntityRenderDispatcher dispatcher = client.getEntityRenderDispatcher();
+        dispatcher.configure(client.world, camera, null);
         VertexConsumerProvider.Immediate consumers =
                 client.getBufferBuilders().getEntityVertexConsumers();
+        MatrixStack matrices = new MatrixStack();
+        var modelView = RenderSystem.getModelViewStack();
+        modelView.pushMatrix();
+        modelView.mul(view);
+        RenderSystem.applyModelViewMatrix();
 
-        PlayerEntity viewer = client.player;
-        for (LivingEntity entity : entities) {
-            Vec3d rel = entity.getBoundingBox().getCenter().subtract(origin);
-            if (rel.lengthSquared() > CameraViews.RANGE * CameraViews.RANGE) {
-                continue;
-            }
-            try {
-                client.getEntityRenderDispatcher().render(
-                        entity,
-                        rel.x - forward.x * 0.0,
-                        rel.y,
-                        rel.z,
-                        entity.getBodyYaw(),
-                        tickDelta,
-                        matrices,
-                        consumers,
-                        0xF000F0);
-            } catch (Throwable ignored) {
-                // A single bad renderer must never kill the feed.
-            }
-            if (viewer != null && entity == viewer) {
-                break;
-            }
-        }
-        consumers.draw(); // flush into the bound framebuffer
-    }
+        double maxDistanceSq = gameEntityDistanceSq(client);
+        try {
+            for (Entity entity : client.world.getEntities()) {
+                if (entity.isRemoved()
+                        || entity.squaredDistanceTo(cameraPos) > maxDistanceSq) {
+                    continue;
+                }
 
-    private static void ensureBuffers() {
-        if (framebuffer == null) {
-            framebuffer = new SimpleFramebuffer(SIZE, SIZE, true, false);
-            pixelBuffer = ByteBuffer.allocateDirect(SIZE * SIZE * 4)
-                    .order(ByteOrder.nativeOrder());
+                double x = MathHelper.lerp(tickDelta, entity.lastRenderX, entity.getX());
+                double y = MathHelper.lerp(tickDelta, entity.lastRenderY, entity.getY());
+                double z = MathHelper.lerp(tickDelta, entity.lastRenderZ, entity.getZ());
+                float yaw = MathHelper.lerp(tickDelta, entity.prevYaw, entity.getYaw());
+                int light = dispatcher.getLight(entity, tickDelta);
+
+                dispatcher.render(entity, x - cameraPos.x, y - cameraPos.y,
+                        z - cameraPos.z, yaw, tickDelta, matrices, consumers, light);
+            }
+            consumers.draw();
+        } finally {
+            modelView.popMatrix();
+            RenderSystem.applyModelViewMatrix();
         }
     }
 
-    // --- queries used by the BER ---
-
-    public static boolean hasLiveFeed(ScreenBlockEntity be) {
-        Channel ch = CHANNELS.get(be.getPos());
-        return ch != null && System.currentTimeMillis() - ch.lastUpdate < STALE_MS;
+    private static double gameEntityDistanceSq(MinecraftClient client) {
+        double distance = Math.max(32.0,
+                client.options.getClampedViewDistance() * 16.0);
+        return distance * distance;
     }
 
-    public static Identifier textureIdFor(ScreenBlockEntity be) {
-        Channel ch = CHANNELS.get(be.getPos());
-        return ch != null ? ch.textureId : null;
+    private static Vec3d cameraPosition(BlockPos pos, Direction facing) {
+        return Vec3d.ofCenter(pos)
+                .add(Vec3d.of(facing.getVector()).multiply(0.2))
+                .add(0.0, -0.1, 0.0);
+    }
+
+    private static float yawFor(Direction facing) {
+        return switch (facing) {
+            case NORTH -> 180.0f;
+            case EAST -> -90.0f;
+            case WEST -> 90.0f;
+            default -> 0.0f;
+        };
+    }
+
+    private static float pitchFor(Direction facing) {
+        return switch (facing) {
+            case UP -> -90.0f;
+            case DOWN -> 90.0f;
+            default -> 0.0f;
+        };
+    }
+
+    private static void pruneScreens(MinecraftClient client) {
+        SCREENS.entrySet().removeIf(entry -> {
+            ScreenBlockEntity screen = entry.getValue();
+            return screen.isRemoved() || screen.getWorld() != client.world;
+        });
+    }
+
+    private static void clear(MinecraftClient client) {
+        SCREENS.clear();
+        List<CameraFeed> feeds = new ArrayList<>(FEEDS.values());
+        FEEDS.clear();
+        feeds.forEach(feed -> feed.close(client));
+    }
+
+    public static boolean isRenderingFeed() {
+        return renderingFeed;
+    }
+
+    /** Used by WorldRendererMixin to keep every vanilla sub-pass in the feed FBO. */
+    public static Framebuffer currentRenderTarget() {
+        return renderingFeed ? renderTarget : null;
+    }
+
+    public static boolean hasLiveFeed(ScreenBlockEntity screen) {
+        CameraFeed feed = feedFor(screen);
+        return feed != null && System.currentTimeMillis() - feed.lastRender < STALE_MS;
+    }
+
+    public static Identifier textureIdFor(ScreenBlockEntity screen) {
+        CameraFeed feed = feedFor(screen);
+        return feed == null ? null : feed.textureId;
+    }
+
+    private static CameraFeed feedFor(ScreenBlockEntity screen) {
+        BlockPos camPos = screen.getLastCamPos();
+        return camPos == null ? null : FEEDS.get(camPos);
     }
 }

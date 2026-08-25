@@ -3,6 +3,7 @@ package com.matissjurevics.icyou.remote;
 import com.matissjurevics.icyou.camera.CameraBlock;
 import com.matissjurevics.icyou.registry.ModDataComponentTypes;
 import com.matissjurevics.icyou.screen.ScreenBlock;
+import com.matissjurevics.icyou.screen.ScreenBlockEntity;
 import com.matissjurevics.icyou.terminal.CameraTerminalBlock;
 import com.matissjurevics.icyou.terminal.DeviceRegistry;
 
@@ -69,6 +70,9 @@ public class SetupRemoteItem extends Item {
                     player.sendMessage(Text.literal("Camera linked as " + dev.name()), false);
                 } else if (scr != null) {
                     var dev = reg.addScreen(pos, scr);
+                    if (world.getBlockEntity(scr) instanceof ScreenBlockEntity screen) {
+                        screen.setTerminal(pos);
+                    }
                     stack.remove(ModDataComponentTypes.LINKED_SCREEN);
                     player.sendMessage(Text.literal("Screen linked as " + dev.name()), false);
                 } else {

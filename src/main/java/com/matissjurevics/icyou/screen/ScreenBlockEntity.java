@@ -63,13 +63,24 @@ public class ScreenBlockEntity extends BlockEntity {
             return;
         }
         screen.syncCounter = 0;
-        if (!(world instanceof ServerWorld serverWorld) || screen.terminalPos == null) {
+        if (!(world instanceof ServerWorld serverWorld)) {
             return;
         }
 
         DeviceRegistry reg = DeviceRegistry.get(serverWorld);
         Optional<DeviceRegistry.ScreenDevice> scr = reg.screenAt(pos);
-        if (scr.isEmpty() || scr.get().assignedCamId() < 0) {
+        if (scr.isEmpty()) {
+            return;
+        }
+
+        // DeviceRegistry is the source of truth. This also repairs screens linked
+        // before their block entity's terminal field was populated, or while the
+        // screen's chunk was unloaded.
+        BlockPos terminal = scr.get().terminal();
+        if (!terminal.equals(screen.terminalPos)) {
+            screen.setTerminal(terminal);
+        }
+        if (scr.get().assignedCamId() < 0) {
             return;
         }
         Optional<DeviceRegistry.CameraDevice> cam = reg.cameraById(scr.get().assignedCamId());
@@ -85,8 +96,9 @@ public class ScreenBlockEntity extends BlockEntity {
         }
 
         List<FeedBlip> blips = CameraViews.scanBlips(world, camPos, facing);
-        int index = reg.camerasFor(screen.terminalPos).indexOf(cam.get()) + 1;
-        int count = reg.camerasFor(screen.terminalPos).size();
+        List<DeviceRegistry.CameraDevice> terminalCameras = reg.camerasFor(terminal);
+        int index = terminalCameras.indexOf(cam.get()) + 1;
+        int count = terminalCameras.size();
         FeedDataS2CPayload payload = new FeedDataS2CPayload(
                 pos, camPos, facing.getId(), index, count, blips);
         PlayerLookup.tracking(serverWorld, pos)
