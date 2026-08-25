@@ -45,6 +45,8 @@ push. When you push a version tag like `v1.0.0`, it:
 2. Attaches the jar to a **GitHub Release** so it can be downloaded and
    uploaded to [CurseForge](https://authors.curseforge.com) (see
    `RELEASE_CURSEFORGE.md`).
+3. If the `CURSEFORGE_API_TOKEN` and `CURSEFORGE_PROJECT_ID` secrets are set,
+   uploads the jar straight to CurseForge automatically.
 
 To create a release, tag the commit and push:
 
@@ -52,6 +54,24 @@ To create a release, tag the commit and push:
 git tag v1.0.0
 git push origin v1.0.0
 ```
+
+### Enabling automatic CurseForge uploads
+
+1. Create the project on [CurseForge](https://authors.curseforge.com) and note
+   its numeric **Project ID** (shown in the project sidebar).
+2. Generate an **API token** at <https://authors.curseforge.com> (CurseForge
+   → Account → API keys).
+3. In the repo **Settings → Secrets and variables → Actions**, add:
+
+   - `CURSEFORGE_API_TOKEN` — the CurseForge API token.
+   - `CURSEFORGE_PROJECT_ID` — the numeric project id.
+
+   Optionally set the `CF_GAME_VERSIONS` repository **variable** to override the
+   game version tags used for the upload (default: `Minecraft 1.21.1:1.21.1,Java 21,Fabric`).
+
+Until both secrets are present, the workflow skips the CurseForge step and
+still publishes the GitHub Release, so nothing breaks. See
+`RELEASE_CURSEFORGE.md` for the manual upload walkthrough.
 
 ## Mod details
 
