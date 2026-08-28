@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "B": { "item": "minecraft:stone_button" },
+    "C": { "item": "minecraft:copper_ingot" },
+    "I": { "item": "minecraft:iron_nugget" },
+    "R": { "item": "minecraft:redstone_torch" }
+  },
+  "pattern": [
+    " I",
+    "CR",
+    " B"
+  ],
+  "result": {
+    "count": 1,
+    "id": "icyou:setup_remote"
+  }
+}

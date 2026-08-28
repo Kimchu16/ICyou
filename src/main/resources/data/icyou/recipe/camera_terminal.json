@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "C": { "item": "minecraft:comparator" },
+    "I": { "item": "minecraft:iron_ingot" },
+    "R": { "item": "minecraft:redstone" },
+    "S": { "item": "icyou:screen" }
+  },
+  "pattern": [
+    "ICI",
+    "RSR",
+    "III"
+  ],
+  "result": {
+    "count": 1,
+    "id": "icyou:camera_terminal"
+  }
+}
