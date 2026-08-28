@@ -16,7 +16,7 @@ import net.minecraft.util.math.BlockPos;
  * wireless screens). {@code openGui} instructs the client to open the
  * terminal management screen; otherwise it refreshes the cache / HUD.
  */
-public record DeviceSnapshotS2CPayload(boolean openGui, BlockPos terminal,
+public record DeviceSnapshotS2CPayload(boolean openGui, BlockPos terminal, String slug,
                                        List<Cam> cameras, List<Scr> screens,
                                        List<Wrl> wireless)
         implements CustomPayload {
@@ -34,6 +34,7 @@ public record DeviceSnapshotS2CPayload(boolean openGui, BlockPos terminal,
     private static void write(DeviceSnapshotS2CPayload p, RegistryByteBuf buf) {
         buf.writeBoolean(p.openGui());
         buf.writeBlockPos(p.terminal());
+        buf.writeString(p.slug());
         buf.writeVarInt(p.cameras().size());
         for (Cam c : p.cameras()) {
             buf.writeVarInt(c.id());
@@ -60,6 +61,7 @@ public record DeviceSnapshotS2CPayload(boolean openGui, BlockPos terminal,
     private static DeviceSnapshotS2CPayload read(RegistryByteBuf buf) {
         boolean openGui = buf.readBoolean();
         BlockPos terminal = buf.readBlockPos();
+        String slug = buf.readString();
         int camCount = buf.readVarInt();
         List<Cam> cameras = new ArrayList<>(camCount);
         for (int i = 0; i < camCount; i++) {
@@ -77,7 +79,7 @@ public record DeviceSnapshotS2CPayload(boolean openGui, BlockPos terminal,
         for (int i = 0; i < wrlCount; i++) {
             wireless.add(new Wrl(buf.readVarInt(), buf.readString()));
         }
-        return new DeviceSnapshotS2CPayload(openGui, terminal, cameras, screens, wireless);
+        return new DeviceSnapshotS2CPayload(openGui, terminal, slug, cameras, screens, wireless);
     }
 
     @Override

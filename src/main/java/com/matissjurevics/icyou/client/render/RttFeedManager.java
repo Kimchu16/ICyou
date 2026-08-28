@@ -1,6 +1,7 @@
 package com.matissjurevics.icyou.client.render;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -10,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.matissjurevics.icyou.client.stream.StreamFrame;
+import com.matissjurevics.icyou.client.stream.StreamStore;
 import com.matissjurevics.icyou.ICyouMod;
 import com.matissjurevics.icyou.screen.ScreenBlockEntity;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -35,6 +38,9 @@ import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.stb.STBImageWrite;
+import org.lwjgl.stb.STBIWriteCallbackI;
+import org.lwjgl.system.MemoryUtil;
 
 /**
  * Renders security cameras with Minecraft's real {@link net.minecraft.client.render.WorldRenderer}
@@ -59,6 +65,7 @@ public final class RttFeedManager {
     private static Framebuffer renderTarget;
     private static boolean disabled;
     private static int failureCount;
+    private static ByteBuffer captureBuf;
 
     private static final class CameraFeed {
         final BlockPos cameraPos;
@@ -220,6 +227,7 @@ public final class RttFeedManager {
                     gameRenderer.getLightmapTextureManager(), view, projection);
             renderEntities(client, feed, camera, cameraPos, view, tickDelta);
             feed.lastRender = now;
+            publishFeed(feed);
             failureCount = 0;
         } catch (Throwable error) {
             failureCount++;
@@ -289,6 +297,55 @@ public final class RttFeedManager {
         double distance = Math.max(32.0,
                 client.options.getClampedViewDistance() * 16.0);
         return distance * distance;
+    }
+
+    /** Reads the just-rendered FBO and publishes a JPEG frame for web streaming. */
+    private static void publishFeed(CameraFeed feed) {
+        try {
+            if (captureBuf == null || captureBuf.capacity() < WIDTH * HEIGHT * 4) {
+                captureBuf = ByteBuffer.allocateDirect(WIDTH * HEIGHT * 4);
+            }
+            captureBuf.clear();
+            GL11.glReadPixels(0, 0, WIDTH, HEIGHT, GL11.GL_RGBA,
+                    GL11.GL_UNSIGNED_BYTE, captureBuf);
+            byte[] jpg = encodeJpeg(captureBuf, WIDTH, HEIGHT);
+            if (jpg != null && jpg.length > 0) {
+                StreamStore.put(feed.cameraPos.asLong(),
+                        new StreamFrame(jpg, System.currentTimeMillis()));
+            }
+        } catch (Throwable t) {
+            ICyouMod.LOGGER.debug("[stream] capture failed for {}", feed.cameraPos, t);
+        }
+    }
+
+    /** Row-flips the GL framebuffer and encodes an in-memory JPEG. */
+    private static byte[] encodeJpeg(ByteBuffer rgba, int w, int h) {
+        ByteBuffer flipped = ByteBuffer.allocateDirect(w * h * 4);
+        for (int y = 0; y < h; y++) {
+            int src = y * w * 4;
+            int dst = (h - 1 - y) * w * 4;
+            for (int x = 0; x < w * 4; x++) {
+                flipped.put(dst + x, rgba.get(src + x));
+            }
+        }
+        ByteBuffer out = ByteBuffer.allocateDirect(96 * 1024);
+        int[] off = new int[1];
+        STBIWriteCallbackI cb = (user, data, size) -> {
+            ByteBuffer chunk = MemoryUtil.memByteBuffer(data, size);
+            for (int i = 0; i < size; i++) {
+                out.put(off[0] + i, chunk.get(i));
+            }
+            off[0] += size;
+        };
+        int ok = STBImageWrite.stbi_write_jpg_to_func(cb, 0L, w, h, 4, flipped, 80);
+        if (ok == 0) {
+            return null;
+        }
+        byte[] jpg = new byte[off[0]];
+        for (int i = 0; i < off[0]; i++) {
+            jpg[i] = out.get(i);
+        }
+        return jpg;
     }
 
     private static Vec3d cameraPosition(BlockPos pos, Direction facing) {

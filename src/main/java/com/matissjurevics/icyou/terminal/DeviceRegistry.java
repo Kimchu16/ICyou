@@ -1,8 +1,12 @@
 package com.matissjurevics.icyou.terminal;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import com.matissjurevics.icyou.ICyouMod;
 
@@ -30,6 +34,7 @@ public class DeviceRegistry extends PersistentState {
     private final List<CameraDevice> cameras = new ArrayList<>();
     private final List<ScreenDevice> screens = new ArrayList<>();
     private final List<WirelessDevice> wireless = new ArrayList<>();
+    private final Map<BlockPos, String> slugByTerminal = new HashMap<>();
 
     public DeviceRegistry() {
         super();
@@ -197,6 +202,43 @@ public class DeviceRegistry extends PersistentState {
         return cameraById(id);
     }
 
+    // --- per-terminal slugs ---
+
+    /** Returns the terminal's stable slug, generating one if missing. */
+    public String ensureSlug(BlockPos terminal) {
+        BlockPos t = terminal.toImmutable();
+        String existing = slugByTerminal.get(t);
+        if (existing != null) {
+            return existing;
+        }
+        String slug;
+        do {
+            slug = SlugToken.generate();
+        } while (slugByTerminal.containsValue(slug));
+        slugByTerminal.put(t, slug);
+        markDirty();
+        return slug;
+    }
+
+    public Optional<String> slugFor(BlockPos terminal) {
+        return Optional.ofNullable(slugByTerminal.get(terminal.toImmutable()));
+    }
+
+    /** Distinct terminals across all devices. */
+    public Set<BlockPos> terminalPositions() {
+        Set<BlockPos> terms = new HashSet<>();
+        for (CameraDevice c : cameras) {
+            terms.add(c.terminal());
+        }
+        for (ScreenDevice s : screens) {
+            terms.add(s.terminal());
+        }
+        for (WirelessDevice w : wireless) {
+            terms.add(w.terminal());
+        }
+        return terms;
+    }
+
     // --- persistence ---
 
     private static DeviceRegistry readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
@@ -220,6 +262,11 @@ public class DeviceRegistry extends PersistentState {
             NbtCompound c = wrlList.getCompound(i);
             reg.wireless.add(new WirelessDevice(c.getInt("id"), c.getString("name"),
                     BlockPos.fromLong(c.getLong("term"))));
+        }
+        var slugList = nbt.getList("slugs", 10);
+        for (int i = 0; i < slugList.size(); i++) {
+            NbtCompound c = slugList.getCompound(i);
+            reg.slugByTerminal.put(BlockPos.fromLong(c.getLong("t")), c.getString("s"));
         }
         return reg;
     }
@@ -259,6 +306,15 @@ public class DeviceRegistry extends PersistentState {
             wrlList.add(tag);
         }
         nbt.put("wireless", wrlList);
+
+        var slugList = new net.minecraft.nbt.NbtList();
+        for (var e : slugByTerminal.entrySet()) {
+            net.minecraft.nbt.NbtCompound tag = new net.minecraft.nbt.NbtCompound();
+            tag.putLong("t", e.getKey().asLong());
+            tag.putString("s", e.getValue());
+            slugList.add(tag);
+        }
+        nbt.put("slugs", slugList);
         return nbt;
     }
 
