@@ -8,6 +8,8 @@ import com.matissjurevics.icyou.client.gui.TerminalGuiScreen;
 import com.matissjurevics.icyou.client.hud.WirelessHud;
 import com.matissjurevics.icyou.client.render.RttFeedManager;
 import com.matissjurevics.icyou.client.render.ScreenFeedRenderer;
+import com.matissjurevics.icyou.client.stream.StreamConfig;
+import com.matissjurevics.icyou.client.stream.StreamServer;
 import com.matissjurevics.icyou.network.DeviceSnapshotS2CPayload;
 import com.matissjurevics.icyou.network.EnterCameraViewS2CPayload;
 import com.matissjurevics.icyou.network.FeedDataS2CPayload;
@@ -15,6 +17,7 @@ import com.matissjurevics.icyou.registry.ModBlockEntities;
 import com.matissjurevics.icyou.screen.ScreenBlockEntity;
 
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.BlockEntityRendererRegistry;
@@ -67,6 +70,12 @@ public class ICyouClient implements ClientModInitializer {
         CameraViewController.init();
         WirelessHud.init();
         ClientTickEvents.END_CLIENT_TICK.register(RttFeedManager::tick);
+
+        StreamConfig.load();
+        if (StreamConfig.enabled) {
+            StreamServer.start();
+        }
+        ClientLifecycleEvents.CLIENT_STOPPING.register(c -> StreamServer.stop());
 
         ICyouMod.LOGGER.info("ICyou client initialized");
     }

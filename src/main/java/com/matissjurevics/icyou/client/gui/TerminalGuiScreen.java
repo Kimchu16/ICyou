@@ -58,8 +58,20 @@ public class TerminalGuiScreen extends Screen {
 
     private static final int ROWS = 4;
     private static final int ROW_H = 14;
-    private static final int PANEL_W = 260;
-    private static final int PANEL_H = 216;
+    private static final int PANEL_W = 280;
+
+    // palette
+    private static final int BG           = 0xF216161A;
+    private static final int TITLE_BG     = 0xFF202027;
+    private static final int PANEL_BORDER = 0xFF33333E;
+    private static final int ACCENT       = 0xFF30FF60;
+    private static final int ROW_BG       = 0x14000000;
+    private static final int ROW_HOVER    = 0x24FFFFFF;
+    private static final int SEP          = 0x18FFFFFF;
+    private static final int TEXT_MAIN    = 0xFFE8E8F0;
+    private static final int TEXT_DIM     = 0xFF8A8A94;
+    private static final int TEXT_OFF     = 0xFF808080;
+    private static final int[] SECTION_ACCENT = { 0xFF4FC8FF, 0xFF58E07A, 0xFFFFC05A };
 
     public TerminalGuiScreen(DeviceSnapshotS2CPayload initial) {
         super(Text.literal("ICyou Terminal"));
@@ -85,8 +97,16 @@ public class TerminalGuiScreen extends Screen {
         return (width - PANEL_W) / 2;
     }
 
-    private int panelY() {
-        return (height - PANEL_H) / 2;
+    private int panelHeight(DeviceSnapshotS2CPayload snap) {
+        int h = 14; // title bar
+        h += sectionH(snap.cameras().size());
+        h += sectionH(snap.screens().size());
+        h += sectionH(snap.wireless().size());
+        return h + 2; // bottom border
+    }
+
+    private int sectionH(int total) {
+        return ROW_H + Math.min(ROWS, Math.max(0, total)) * ROW_H + 6;
     }
 
     @Override
@@ -97,29 +117,49 @@ public class TerminalGuiScreen extends Screen {
             return;
         }
 
+        int ph = panelHeight(snap);
         int x0 = panelX();
-        int y0 = panelY();
-        context.fill(x0, y0, x0 + PANEL_W, y0 + PANEL_H, 0xE0181818);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal("ICyou Terminal"),
-                x0 + PANEL_W / 2, y0 + 4, 0xFF60FF60);
+        int y0 = (height - ph) / 2;
+
+        // panel background + rounded-corner border
+        context.fill(x0, y0, x0 + PANEL_W, y0 + ph, BG);
+        context.fill(x0, y0 + ph - 1, x0 + PANEL_W, y0 + ph, PANEL_BORDER);
+        context.fill(x0 + PANEL_W - 1, y0, x0 + PANEL_W, y0 + ph, PANEL_BORDER);
+
+        // title bar
+        context.fill(x0, y0, x0 + PANEL_W, y0 + 14, TITLE_BG);
+        context.drawTextWithShadow(textRenderer, Text.literal("ICyou Terminal"),
+                x0 + 8, y0 + 4, ACCENT);
+        String slug = snap.slug();
+        if (slug != null && !slug.isEmpty()) {
+            int sw = textRenderer.getWidth(slug);
+            context.drawTextWithShadow(textRenderer, Text.literal(slug),
+                    x0 + PANEL_W - 8 - sw, y0 + 4, 0xFF7FB0FF);
+        }
+
+        // left accent spine (on top of the title bar)
+        context.fill(x0, y0, x0 + 3, y0 + ph, ACCENT);
+        // title underline
+        context.fill(x0 + 3, y0 + 13, x0 + PANEL_W, y0 + 14, 0x22FFFFFF);
 
         clearRects();
         int y = y0 + 14;
 
         y = renderSection(context, "CAMERAS", snap.cameras().size(), camPage, y, x0,
-                snap, 0);
+                snap, 0, mouseX, mouseY);
         y = renderSection(context, "SCREENS", snap.screens().size(), scrPage, y, x0,
-                snap, 1);
+                snap, 1, mouseX, mouseY);
         y = renderSection(context, "WIRELESS", snap.wireless().size(), wrlPage, y, x0,
-                snap, 2);
+                snap, 2, mouseX, mouseY);
 
         // dragged camera label
         if (dragCamId >= 0) {
             String label = snap.cameras().stream().filter(c -> c.id() == dragCamId)
                     .map(c -> c.name()).findFirst().orElse("?");
-            context.fill(dragX - 2, dragY - 2, dragX + textRenderer.getWidth(label) + 4,
-                    dragY + 10, 0xC0202020);
-            context.drawTextWithShadow(textRenderer, Text.literal(label), dragX, dragY, 0xFFFFFF);
+            int w = textRenderer.getWidth(label);
+            context.fill(dragX - 2, dragY - 2, dragX + w + 4, dragY + 10, 0xE0202027);
+            context.fill(dragX - 2, dragY - 2, dragX + w + 4, dragY - 1, ACCENT);
+            context.drawTextWithShadow(textRenderer, Text.literal(label), dragX, dragY, 0xFFE8E8F0);
         }
 
         if (editingType >= 0 && renameField != null && renameField.isVisible()) {
@@ -137,17 +177,29 @@ public class TerminalGuiScreen extends Screen {
     }
 
     private int renderSection(DrawContext context, String title, int total, int page,
-                              int y, int x0, DeviceSnapshotS2CPayload snap, int type) {
-        int headerX = x0 + 4;
-        context.drawTextWithShadow(textRenderer, Text.literal(title), headerX, y, 0xFFD0D0D0);
+                              int y, int x0, DeviceSnapshotS2CPayload snap, int type,
+                              int mouseX, int mouseY) {
+        int accent = SECTION_ACCENT[type];
+        int headerX = x0 + 8;
+        context.drawTextWithShadow(textRenderer, Text.literal(title), headerX, y, accent);
+        context.drawTextWithShadow(textRenderer, Text.literal(String.valueOf(total)),
+                headerX + textRenderer.getWidth(title) + 4, y, TEXT_DIM);
 
-        // paging arrows
+        // paging buttons
         int right = x0 + PANEL_W - 14;
         Rect leftBtn = new Rect(right - 18, y - 2, 8, 10);
         Rect rightBtn = new Rect(right - 8, y - 2, 8, 10);
-        context.drawTextWithShadow(textRenderer, Text.literal("<"), right - 18, y - 2, 0xFFFFFFFF);
-        context.drawTextWithShadow(textRenderer, Text.literal(">"), right - 8, y - 2, 0xFFFFFFFF);
+        boolean hl = leftBtn.contains(mouseX, mouseY);
+        boolean hr = rightBtn.contains(mouseX, mouseY);
+        context.fill(leftBtn.x, leftBtn.y, leftBtn.x + leftBtn.w, leftBtn.y + leftBtn.h,
+                hl ? ROW_HOVER : ROW_BG);
+        context.fill(rightBtn.x, rightBtn.y, rightBtn.x + rightBtn.w, rightBtn.y + rightBtn.h,
+                hr ? ROW_HOVER : ROW_BG);
+        context.drawTextWithShadow(textRenderer, Text.literal("<"), leftBtn.x, y - 2, 0xFFFFFFFF);
+        context.drawTextWithShadow(textRenderer, Text.literal(">"), rightBtn.x, y - 2, 0xFFFFFFFF);
         storePageRects(type, leftBtn, rightBtn);
+        // section underline
+        context.fill(headerX, y + ROW_H - 4, x0 + PANEL_W - 8, y + ROW_H - 3, SEP);
         y += ROW_H;
 
         int maxPage = Math.max(0, (total + ROWS - 1) / ROWS - 1);
@@ -177,22 +229,40 @@ public class TerminalGuiScreen extends Screen {
                 extra = "";
             }
 
-            int rowX = x0 + 4;
-            int rowW = PANEL_W - 40;
+            int rowX = x0 + 8;
+            int rowW = PANEL_W - 16;
             Rect rowRect = new Rect(rowX, y - 2, rowW, ROW_H);
             storeRowRect(type, rowRect);
 
-            int color = online ? 0xFFFFFFFF : 0xFF707070;
-            context.drawTextWithShadow(textRenderer,
-                    Text.literal(name + extra), rowX, y, color);
+            boolean hov = rowRect.contains(mouseX, mouseY);
+            context.fill(rowX, y - 2, rowX + rowW, y + ROW_H - 2, hov ? ROW_HOVER : ROW_BG);
+            // status dot
+            context.fill(rowX + 2, y + 1, rowX + 6, y + 5,
+                    online ? 0xFF3FDF5F : 0xFFE05050);
+            int color = online ? TEXT_MAIN : TEXT_OFF;
+            context.drawTextWithShadow(textRenderer, Text.literal(name + extra),
+                    rowX + 10, y, color);
 
-            Rect rename = new Rect(x0 + PANEL_W - 40, y - 2, 12, 10);
-            Rect remove = new Rect(x0 + PANEL_W - 26, y - 2, 12, 10);
-            context.drawTextWithShadow(textRenderer, Text.literal("R"),
-                    rename.x, y - 2, 0xFFB0B0FF);
-            context.drawTextWithShadow(textRenderer, Text.literal("X"),
-                    remove.x, y - 2, 0xFFFF8080);
+            Rect rename = new Rect(x0 + PANEL_W - 46, y - 2, 16, 12);
+            Rect remove = new Rect(x0 + PANEL_W - 28, y - 2, 16, 12);
+            boolean hr2 = rename.contains(mouseX, mouseY);
+            boolean hx2 = remove.contains(mouseX, mouseY);
+            context.fill(rename.x, rename.y, rename.x + rename.w, rename.y + rename.h,
+                    hr2 ? 0xFF4A6FD0 : 0xFF3A5FBF);
+            context.fill(remove.x, remove.y, remove.x + remove.w, remove.y + remove.h,
+                    hx2 ? 0xFFD05656 : 0xFFB03F3F);
+            context.drawCenteredTextWithShadow(textRenderer, Text.literal("R"),
+                    rename.x + rename.w / 2, rename.y + 3, 0xFFFFFFFF);
+            context.drawCenteredTextWithShadow(textRenderer, Text.literal("X"),
+                    remove.x + remove.w / 2, remove.y + 3, 0xFFFFFFFF);
             storeBtnRects(type, rename, remove);
+
+            // park the rename widget over the row being edited
+            if (type == editingType && id == editingId && renameField != null) {
+                renameField.setX(rowX);
+                renameField.setY(y - 2);
+                renameField.setWidth(rowW);
+            }
 
             y += ROW_H;
         }

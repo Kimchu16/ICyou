@@ -98,6 +98,7 @@ public final class DeviceSubscriptions {
         List<DeviceSnapshotS2CPayload.Wrl> wireless = reg.wirelessFor(terminal).stream()
                 .map(w -> new DeviceSnapshotS2CPayload.Wrl(w.id(), w.name())).toList();
 
-        return new DeviceSnapshotS2CPayload(openGui, terminal, cameras, screens, wireless);
+        return new DeviceSnapshotS2CPayload(openGui, terminal, reg.ensureSlug(terminal),
+                cameras, screens, wireless);
     }
 }
