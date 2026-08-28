@@ -34,6 +34,29 @@ public final class StreamServer {
     private static final int STREAM_POLL_MS = 80;
     private static final int STREAM_MAX_IDLE_MS = 60_000;
 
+    private static final String STYLE =
+            ":root{--bg:#101014;--panel:#1a1c22;--border:#2e3038;--text:#e8e8f0;"
+            + "--dim:#8a8a94;--accent:#30ff60;--blue:#4fc8ff;--off:#f87171}"
+            + "*{box-sizing:border-box}body{background:var(--bg);color:var(--text);"
+            + "font-family:ui-monospace,SFMono-Regular,Menlo,monospace;margin:0;padding:0}"
+            + "header{background:var(--panel);border-bottom:2px solid var(--accent);"
+            + "padding:14px 24px;display:flex;align-items:center;justify-content:space-between}"
+            + "header .logo{color:var(--accent);font-weight:700;letter-spacing:2px}"
+            + "header a{color:var(--dim)}header a:hover{color:var(--text)}"
+            + "main{padding:24px;max-width:1100px;margin:0 auto}"
+            + "h1{font-size:20px;margin:0 0 18px;font-weight:600;color:var(--accent)}"
+            + "a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}"
+            + "ul.terms{list-style:none;padding:0;margin:0;display:grid;gap:10px}"
+            + "ul.terms li{background:var(--panel);border:1px solid var(--border);"
+            + "border-left:3px solid var(--accent);padding:12px 16px;border-radius:6px}"
+            + "ul.terms .n{color:var(--dim);margin-left:8px}"
+            + ".grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}"
+            + ".cam{background:var(--panel);border:1px solid var(--border);padding:12px;"
+            + "border-radius:6px}.cam b{color:var(--text)}"
+            + ".cam img{width:100%;display:block;background:#000;border-radius:4px;margin-top:10px}"
+            + ".on{color:var(--accent)}.off{color:var(--off)}"
+            + "p{color:var(--dim)}";
+
     private static volatile ServerSocket socket;
     private static volatile ExecutorService pool;
     private static volatile boolean running;
@@ -173,8 +196,8 @@ public final class StreamServer {
                 String slug = reg.ensureSlug(t);
                 int cams = reg.camerasFor(t).size();
                 sb.append("<li><a href=\"/").append(slug).append("\">")
-                        .append(esc(slug)).append("</a> &mdash; ").append(cams)
-                        .append(" cameras</li>");
+                        .append(esc(slug)).append("</a><span class=\"n\">")
+                        .append(cams).append(" cameras</span></li>");
             }
             return sb.toString();
         });
@@ -182,7 +205,7 @@ public final class StreamServer {
             send(out, 200, "text/html", page("ICyou", "<p>This client isn't hosting a world.</p>"));
             return;
         }
-        send(out, 200, "text/html", page("ICyou terminals", "<ul>" + rows + "</ul>"));
+        send(out, 200, "text/html", page("ICyou terminals", "<ul class=\"terms\">" + rows + "</ul>"));
     }
 
     // --- terminal page (GET /<slug>) ---
@@ -233,11 +256,7 @@ public final class StreamServer {
         if (rows.length() == 0) {
             rows.append("<p>No cameras linked to this terminal.</p>");
         }
-        String style = ".grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));"
-                + "gap:16px}.cam{background:#16181d;border:1px solid #2c2f36;padding:10px;"
-                + "border-radius:6px}.cam img{width:100%;height:auto;display:block;"
-                + "background:#000;margin-top:8px}.on{color:#4ade80}.off{color:#f87171}";
-        return page(slug, "<div class=\"grid\">" + rows + "</div><style>" + style + "</style>");
+        return page(slug, "<div class=\"grid\">" + rows + "</div>");
     }
 
     private static boolean isCameraOnline(ServerWorld world, BlockPos pos) {
@@ -335,7 +354,9 @@ public final class StreamServer {
     private static String page(String title, String body) {
         return "<!doctype html><html><head><meta charset=utf-8><meta name=viewport "
                 + "content=\"width=device-width,initial-scale=1\"><title>" + esc(title)
-                + "</title></head><body><h1>" + esc(title) + "</h1>" + body + "</body></html>";
+                + "</title><style>" + STYLE + "</style></head><body>"
+                + "<header><span class=\"logo\">ICYOU</span><a href=\"/\">terminals</a></header>"
+                + "<main><h1>" + esc(title) + "</h1>" + body + "</main></body></html>";
     }
 
     private static String esc(String s) {
