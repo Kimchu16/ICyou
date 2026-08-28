@@ -4,8 +4,6 @@ import java.util.function.Function;
 
 import com.matissjurevics.icyou.ICyouMod;
 import com.matissjurevics.icyou.camera.CameraBlock;
-import com.matissjurevics.icyou.decor.GlacierBlock;
-import com.matissjurevics.icyou.decor.IcyBlock;
 import com.matissjurevics.icyou.screen.ScreenBlock;
 import com.matissjurevics.icyou.terminal.CameraTerminalBlock;
 import net.minecraft.block.AbstractBlock;
@@ -23,14 +21,6 @@ import net.minecraft.util.Identifier;
 public final class ModBlocks {
 
     private ModBlocks() {}
-
-    // --- Decorative blocks ---
-
-    public static final Block ICY_BLOCK = register("icy_block", IcyBlock::new,
-            AbstractBlock.Settings.create().strength(2.0f, 2.0f));
-
-    public static final Block GLACIER_BLOCK = register("glacier_block", GlacierBlock::new,
-            AbstractBlock.Settings.create().strength(2.5f, 3.0f));
 
     // --- Security devices ---
 

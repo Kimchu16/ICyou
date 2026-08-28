@@ -23,12 +23,8 @@ public final class ModItemGroups {
         Registry.register(Registries.ITEM_GROUP, ICYOU_KEY,
                 FabricItemGroup.builder()
                         .displayName(Text.translatable("itemGroup.icyou.main"))
-                        .icon(() -> new ItemStack(ModBlocks.ICY_BLOCK))
+                        .icon(() -> new ItemStack(ModBlocks.CAMERA))
                         .entries((context, entries) -> {
-                            // Decorative
-                            entries.add(ModBlocks.ICY_BLOCK);
-                            entries.add(ModBlocks.GLACIER_BLOCK);
-                            // Security devices
                             entries.add(ModBlocks.CAMERA);
                             entries.add(ModBlocks.CAMERA_TERMINAL);
                             entries.add(ModBlocks.SCREEN);

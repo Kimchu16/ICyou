@@ -3,7 +3,7 @@
     "id": "icyou",
     "version": "${version}",
     "name": "ICyou",
-    "description": "ICyou adds a working CCTV surveillance system to Minecraft: place cameras, view their live feed on screens and terminals, cycle channels, and track mobs via network blips. Also adds the Icy and Glacier decorative blocks.",
+    "description": "ICyou adds a working CCTV surveillance system to Minecraft: place cameras, view their live feed on screens and terminals, cycle channels, and track mobs via network blips.",
     "authors": [
         "MatissJurevics"
     ],

@@ -32,7 +32,7 @@ Sign in / register at <https://authors.curseforge.com> and create a project:
 
 ### Summary (short blurb — shows in listings & search)
 > A working CCTV surveillance system for Minecraft — place cameras, watch live feeds on
-> screens & terminals, and track mobs. Plus icy decorative blocks.
+> screens & terminals, and track mobs.
 
 ### Description (the big one — most common rejection reason; English, clear, engaging)
 Copy/paste the following (adjust to taste):
@@ -51,7 +51,6 @@ place surveillance cameras around your territory, then view them live on **Scree
 - 👀 **Mouse-look pan/tilt** — look around right from inside the camera view.
 - 📍 **Networked blips** — mobs moving in front of a camera show up as markers on the feed.
 - 🎮 **Setup Remote** & **Portable Screen** — configure and view feeds while on the move.
-- ❄️ **Decorative blocks** — the **Icy Block** and **Glacier Block**.
 
 ### How to get it
 Find the **ICyou** item group in Creative, or build devices via your favourite crafting
@@ -75,7 +74,7 @@ MIT. Source and issue tracker: <https://github.com/MatissJurevics/ICyou>
 ### Class / Categories
 - **Class:** Minecraft
 - **Main category:** `Misc` (or a search-relevant one)
-- **Additional categories (up to 4, only if they actually apply):** e.g. `Technology`, `Decoration`, `Adventure`/`Redstone`.
+- **Additional categories (up to 4, only if they actually apply):** e.g. `Technology`, `Adventure`/`Redstone`.
   > Don't add unrelated categories — moderators will bounce it back.
 
 ### Logo / Avatar
@@ -104,7 +103,6 @@ On the **Files** tab of the project dashboard:
   - Add CCTV surveillance: Cameras, Screens, Camera Terminals, Setup Remote, Portable Screen
   - Channel cycling and mouse-look pan/tilt while viewing a feed
   - Networked mob blips on screen feeds
-  - Add Icy Block and Glacier Block decorations
   ```
 
 - **Supported Versions:** `1.21.1`

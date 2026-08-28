@@ -1,6 +1,6 @@
 # ICyou
 
-A **Fabric** Minecraft mod that adds a working **CCTV surveillance system** plus a pair of icy decorative blocks.
+A **Fabric** Minecraft mod that adds a working **CCTV surveillance system**.
 
 Set up a network of security **Cameras**, then view them on **Screens** and **Camera Terminals**. Watch mobs appear as live position **blips**, cycle between channels, and even look around while you view the feed.
 
@@ -11,7 +11,6 @@ Set up a network of security **Cameras**, then view them on **Screens** and **Ca
 - **Mouse-look pan/tilt** — look around from inside the camera view.
 - **Networked blips** — mobs show up as small markers on the feed.
 - **Setup Remote** & **Portable Screen** items for viewing and configuring on the go.
-- **Decorative blocks** — the **Icy Block** and **Glacier Block**.
 
 ## Requirements
 
