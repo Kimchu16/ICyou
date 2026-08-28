@@ -47,7 +47,7 @@ public final class RttFeedManager {
     private static final int WIDTH = 320;
     private static final int HEIGHT = 180;
     private static final float FOV_DEGREES = 70.0f;
-    private static final long FRAME_INTERVAL_MS = 125L;
+    private static final long FRAME_INTERVAL_MS = 62L;
     private static final long STALE_MS = 3000L;
     private static final double SCREEN_VIEW_DISTANCE = 64.0;
     private static final int MAX_FAILURES = 5;
