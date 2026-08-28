@@ -293,7 +293,7 @@ public final class RttFeedManager {
 
     private static Vec3d cameraPosition(BlockPos pos, Direction facing) {
         return Vec3d.ofCenter(pos)
-                .add(Vec3d.of(facing.getVector()).multiply(0.2))
+                .add(Vec3d.of(facing.getVector()).multiply(0.65))
                 .add(0.0, -0.1, 0.0);
     }
 
