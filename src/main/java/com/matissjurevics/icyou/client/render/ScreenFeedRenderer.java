@@ -79,17 +79,20 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
                 float z = FACE_OFFSET;
                 // The display is viewed from local -Z. Keep the winding and
                 // normal pointed that way so the render layer does not cull it.
+                // The feed FBO texture is stored bottom-up (GL framebuffer origin) and
+                // this screen face mirrors X, so sample it with both U and V flipped
+                // or the image appears upside down and/or mirrored.
                 vc.vertex(m4, -h,  h, z).color(255, 255, 255, 255)
-                        .texture(0, 0).overlay(OverlayTexture.DEFAULT_UV).light(FULL_BRIGHT)
-                        .normal(0, 0, -1);
-                vc.vertex(m4,  h,  h, z).color(255, 255, 255, 255)
-                        .texture(1, 0).overlay(OverlayTexture.DEFAULT_UV).light(FULL_BRIGHT)
-                        .normal(0, 0, -1);
-                vc.vertex(m4,  h, -h, z).color(255, 255, 255, 255)
                         .texture(1, 1).overlay(OverlayTexture.DEFAULT_UV).light(FULL_BRIGHT)
                         .normal(0, 0, -1);
-                vc.vertex(m4, -h, -h, z).color(255, 255, 255, 255)
+                vc.vertex(m4,  h,  h, z).color(255, 255, 255, 255)
                         .texture(0, 1).overlay(OverlayTexture.DEFAULT_UV).light(FULL_BRIGHT)
+                        .normal(0, 0, -1);
+                vc.vertex(m4,  h, -h, z).color(255, 255, 255, 255)
+                        .texture(0, 0).overlay(OverlayTexture.DEFAULT_UV).light(FULL_BRIGHT)
+                        .normal(0, 0, -1);
+                vc.vertex(m4, -h, -h, z).color(255, 255, 255, 255)
+                        .texture(1, 0).overlay(OverlayTexture.DEFAULT_UV).light(FULL_BRIGHT)
                         .normal(0, 0, -1);
             }
         } else {

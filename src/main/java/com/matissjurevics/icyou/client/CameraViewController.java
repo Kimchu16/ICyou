@@ -78,7 +78,7 @@ public final class CameraViewController {
         camPos = ref.pos().toImmutable();
         camFacing = Direction.byId(ref.facingId());
         viewPos = Vec3d.ofCenter(camPos)
-                .add(new Vec3d(camFacing.getOffsetX(), 0, camFacing.getOffsetZ()).multiply(0.2))
+                .add(new Vec3d(camFacing.getOffsetX(), 0, camFacing.getOffsetZ()).multiply(0.65))
                 .add(0, -0.1, 0);
 
         float[] saved = REMEMBERED_ANGLES.get(camPos);
