@@ -28,6 +28,8 @@ public final class ModItemGroups {
                             entries.add(ModBlocks.CAMERA);
                             entries.add(ModBlocks.CAMERA_TERMINAL);
                             entries.add(ModBlocks.SCREEN);
+                            entries.add(ModBlocks.MEDIUM_SCREEN);
+                            entries.add(ModBlocks.BIG_SCREEN);
                             entries.add(ModItems.PORTABLE_SCREEN);
                             entries.add(ModItems.SETUP_REMOTE);
                         })

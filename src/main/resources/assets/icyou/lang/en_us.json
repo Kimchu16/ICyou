@@ -2,7 +2,9 @@
     "itemGroup.icyou.main": "ICyou",
     "block.icyou.camera": "Camera",
     "block.icyou.camera_terminal": "Camera Terminal",
-    "block.icyou.screen": "Screen",
+    "block.icyou.screen": "Small Display",
+    "block.icyou.medium_screen": "Medium Display",
+    "block.icyou.big_screen": "Big Display",
     "item.icyou.portable_screen": "Portable Screen",
     "item.icyou.setup_remote": "Setup Remote"
 }

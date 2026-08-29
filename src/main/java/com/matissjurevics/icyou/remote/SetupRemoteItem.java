@@ -45,11 +45,15 @@ public class SetupRemoteItem extends Item {
         }
 
         // --- Pick up a screen link ---
-        if (world.getBlockState(pos).getBlock() instanceof ScreenBlock) {
+        if (world.getBlockState(pos).getBlock() instanceof ScreenBlock screenBlock) {
             if (!world.isClient) {
-                stack.set(ModDataComponentTypes.LINKED_SCREEN, pos.toImmutable());
+                BlockPos controllerPos = screenBlock.getControllerPos(
+                        world.getBlockState(pos), pos);
+                stack.set(ModDataComponentTypes.LINKED_SCREEN,
+                        controllerPos.toImmutable());
                 if (player != null) {
-                    player.sendMessage(Text.literal("Screen link picked up at " + pos.toShortString()), true);
+                    player.sendMessage(Text.literal("Screen link picked up at "
+                            + controllerPos.toShortString()), true);
                 }
             }
             return ActionResult.SUCCESS;
