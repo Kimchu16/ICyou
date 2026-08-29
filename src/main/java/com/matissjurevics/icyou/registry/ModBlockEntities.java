@@ -21,7 +21,8 @@ public final class ModBlockEntities {
 
     public static final BlockEntityType<ScreenBlockEntity> SCREEN =
             FabricBlockEntityTypeBuilder.create(
-                            ScreenBlockEntity::new, ModBlocks.SCREEN)
+                            ScreenBlockEntity::new, ModBlocks.SCREEN,
+                            ModBlocks.MEDIUM_SCREEN, ModBlocks.BIG_SCREEN)
                     .build();
 
     public static void register() {

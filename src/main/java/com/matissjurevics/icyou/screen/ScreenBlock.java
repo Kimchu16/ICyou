@@ -26,7 +26,6 @@ import net.minecraft.world.World;
 import com.matissjurevics.icyou.client.render.RttFeedManager;
 import com.matissjurevics.icyou.registry.ModBlockEntities;
 import com.matissjurevics.icyou.terminal.DeviceRegistry;
-import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 
 /**
@@ -64,6 +63,21 @@ public class ScreenBlock extends Block implements BlockEntityProvider {
         // facing ignores look pitch, so looking up/down cannot rotate the model.
         return getDefaultState().with(FACING,
                 ctx.getHorizontalPlayerFacing().getOpposite());
+    }
+
+    /** Width of the visible panel in blocks. */
+    public int getDisplayWidth() {
+        return 1;
+    }
+
+    /** Height of the visible panel in blocks. */
+    public int getDisplayHeight() {
+        return 1;
+    }
+
+    /** Resolves any occupied part to the controller block entity position. */
+    public BlockPos getControllerPos(BlockState state, BlockPos pos) {
+        return pos;
     }
 
     @Override
@@ -115,16 +129,29 @@ public class ScreenBlock extends Block implements BlockEntityProvider {
     @Override
     public BlockState onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
         if (!world.isClient) {
-            DeviceRegistry.get((ServerWorld) world).removeScreen(pos);
+            DeviceRegistry.get((ServerWorld) world).removeScreen(
+                    getControllerPos(state, pos));
         }
         return super.onBreak(world, pos, state, player);
+    }
+
+    @Override
+    protected void onStateReplaced(BlockState state, World world, BlockPos pos,
+                                   BlockState newState, boolean moved) {
+        if (!state.isOf(newState.getBlock()) && !world.isClient
+                && world instanceof ServerWorld serverWorld) {
+            DeviceRegistry.get(serverWorld).removeScreen(getControllerPos(state, pos));
+        }
+        super.onStateReplaced(state, world, pos, newState, moved);
     }
 
     @Override
     protected ActionResult onUse(BlockState state, World world, BlockPos pos,
                                  PlayerEntity player, BlockHitResult hit) {
         // Passive display — right-click just reports pairing status.
-        if (!world.isClient && world.getBlockEntity(pos) instanceof ScreenBlockEntity screen) {
+        BlockPos controllerPos = getControllerPos(state, pos);
+        if (!world.isClient
+                && world.getBlockEntity(controllerPos) instanceof ScreenBlockEntity screen) {
             if (screen.isReceiving()) {
                 player.sendMessage(Text.literal(String.format(
                         "Display live — CAM %d/%d", screen.getLastIndex(), screen.getLastCount())),

@@ -5,6 +5,7 @@ import java.util.function.Function;
 import com.matissjurevics.icyou.ICyouMod;
 import com.matissjurevics.icyou.camera.CameraBlock;
 import com.matissjurevics.icyou.screen.ScreenBlock;
+import com.matissjurevics.icyou.screen.MultiblockScreenBlock;
 import com.matissjurevics.icyou.terminal.CameraTerminalBlock;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
@@ -34,6 +35,14 @@ public final class ModBlocks {
             // The wall display only occupies a thin slice of its block space.
             // Non-opaque prevents Minecraft from culling the supporting block's
             // face as though the display were a full cube.
+            AbstractBlock.Settings.create().strength(2.0f, 2.0f).nonOpaque());
+
+    public static final Block MEDIUM_SCREEN = register("medium_screen",
+            settings -> new MultiblockScreenBlock(2, settings),
+            AbstractBlock.Settings.create().strength(2.0f, 2.0f).nonOpaque());
+
+    public static final Block BIG_SCREEN = register("big_screen",
+            settings -> new MultiblockScreenBlock(3, settings),
             AbstractBlock.Settings.create().strength(2.0f, 2.0f).nonOpaque());
 
     private static Block register(String name, Function<AbstractBlock.Settings, Block> factory,

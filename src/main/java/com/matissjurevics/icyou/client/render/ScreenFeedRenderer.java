@@ -6,6 +6,7 @@ import com.matissjurevics.icyou.feed.StylizedFeed;
 import com.matissjurevics.icyou.screen.ScreenBlock;
 import com.matissjurevics.icyou.screen.ScreenBlockEntity;
 
+import net.minecraft.block.BlockState;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
@@ -35,12 +36,11 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
     private static final DirectionProperty FACING_PROP = ScreenBlock.FACING;
     private static final int FULL_BRIGHT = 0xF000F0;
 
-    private static final float PANEL_HALF = 0.5f;     // full-block face (16x16 panel)
     // The model's glass face is at local z=12.65/16 (0.290625 from centre).
     // Give the dynamic surface a visible depth gap; a near-coplanar quad loses
     // the depth test to the baked blue face, especially at oblique angles.
     private static final float FACE_OFFSET = 0.27f;
-    private static final int GRID = 10;                // static cells per row/column
+    private static final int GRID_PER_BLOCK = 10;
 
     private final TextRenderer textRenderer;
 
@@ -57,13 +57,25 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
         }
         boolean hasSignal = blockEntity.isReceiving();
 
-        matrices.push();
-        // Move to block centre and rotate so -Z is the direction the screen faces.
-        matrices.translate(0.5, 0.5, 0.5);
+        BlockState state = blockEntity.getCachedState();
         Direction facing = Direction.NORTH;
-        if (blockEntity.getCachedState().contains(FACING_PROP)) {
-            facing = blockEntity.getCachedState().get(FACING_PROP);
+        if (state.contains(FACING_PROP)) {
+            facing = state.get(FACING_PROP);
         }
+        ScreenBlock screenBlock = state.getBlock() instanceof ScreenBlock block ? block : null;
+        int width = screenBlock != null ? screenBlock.getDisplayWidth() : 1;
+        int height = screenBlock != null ? screenBlock.getDisplayHeight() : 1;
+        float halfWidth = width / 2f;
+        float halfHeight = height / 2f;
+        Direction right = facing.rotateYCounterclockwise();
+
+        matrices.push();
+        // The block entity lives in the bottom-left part. Move to the centre of
+        // the complete display before rotating and drawing one continuous feed.
+        matrices.translate(
+                0.5 + right.getOffsetX() * (width - 1) / 2.0,
+                0.5 + (height - 1) / 2.0,
+                0.5 + right.getOffsetZ() * (width - 1) / 2.0);
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(yawDegrees(facing)));
 
         boolean rtt = RttFeedManager.hasLiveFeed(blockEntity);
@@ -75,31 +87,31 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
                 VertexConsumer vc = vertexConsumers.getBuffer(
                         RenderLayer.getEntityTranslucent(texId));
                 Matrix4f m4 = matrices.peek().getPositionMatrix();
-                float h = PANEL_HALF;
                 float z = FACE_OFFSET;
                 // The display is viewed from local -Z. Keep the winding and
                 // normal pointed that way so the render layer does not cull it.
                 // The feed FBO texture is stored bottom-up (GL framebuffer origin) and
                 // this screen face mirrors X, so sample it with both U and V flipped
                 // or the image appears upside down and/or mirrored.
-                vc.vertex(m4, -h,  h, z).color(255, 255, 255, 255)
+                vc.vertex(m4, -halfWidth,  halfHeight, z).color(255, 255, 255, 255)
                         .texture(1, 1).overlay(OverlayTexture.DEFAULT_UV).light(FULL_BRIGHT)
                         .normal(0, 0, -1);
-                vc.vertex(m4,  h,  h, z).color(255, 255, 255, 255)
+                vc.vertex(m4,  halfWidth,  halfHeight, z).color(255, 255, 255, 255)
                         .texture(0, 1).overlay(OverlayTexture.DEFAULT_UV).light(FULL_BRIGHT)
                         .normal(0, 0, -1);
-                vc.vertex(m4,  h, -h, z).color(255, 255, 255, 255)
+                vc.vertex(m4,  halfWidth, -halfHeight, z).color(255, 255, 255, 255)
                         .texture(0, 0).overlay(OverlayTexture.DEFAULT_UV).light(FULL_BRIGHT)
                         .normal(0, 0, -1);
-                vc.vertex(m4, -h, -h, z).color(255, 255, 255, 255)
+                vc.vertex(m4, -halfWidth, -halfHeight, z).color(255, 255, 255, 255)
                         .texture(1, 0).overlay(OverlayTexture.DEFAULT_UV).light(FULL_BRIGHT)
                         .normal(0, 0, -1);
             }
         } else {
-            drawStatic(matrices, vertexConsumers);
-            drawBlips(matrices, vertexConsumers, blockEntity);
+            drawStatic(matrices, vertexConsumers, halfWidth, halfHeight, width, height);
+            drawBlips(matrices, vertexConsumers, blockEntity, halfWidth, halfHeight);
         }
 
+        float textScale = 0.0105f * Math.min(width, height);
         if (hasSignal) {
             String camDir = Direction.byId(blockEntity.getLastFacingId()).asString();
             String channel = blockEntity.getLastCount() > 1
@@ -107,17 +119,19 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
                     : "";
             drawText(matrices, vertexConsumers, FULL_BRIGHT,
                     Text.literal("CAM " + channel + " [" + camDir + "]").formatted(Formatting.GREEN),
-                    PANEL_HALF * 0.55f, 0.06f, 0xFF60FF60);
+                    halfWidth * 0.55f, halfHeight * 0.12f, textScale, 0xFF60FF60);
         } else {
             drawText(matrices, vertexConsumers, FULL_BRIGHT,
-                    Text.literal("NO SIGNAL"), -0.09f, 0.06f, 0xFFFF5050);
+                    Text.literal("NO SIGNAL"), -0.09f * width, halfHeight * 0.12f,
+                    textScale, 0xFFFF5050);
         }
 
         // Blinking LIVE marker.
         long frame = StylizedFeed.INSTANCE.frame();
         if (frame % 20 < 14) {
             drawText(matrices, vertexConsumers, FULL_BRIGHT,
-                    Text.literal("LIVE"), -0.015f, -0.115f,
+                    Text.literal("LIVE"), -0.015f * width, -halfHeight * 0.23f,
+                    textScale,
                     frame % 40 < 20 ? 0xFFFF3030 : 0xFF902020);
         }
 
@@ -125,32 +139,37 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
     }
 
     /** Fills the panel with per-cell pseudo-random static, tinted like night vision. */
-    private void drawStatic(MatrixStack matrices, VertexConsumerProvider vertexConsumers) {
+    private void drawStatic(MatrixStack matrices, VertexConsumerProvider vertexConsumers,
+                            float halfWidth, float halfHeight, int width, int height) {
         long seedBase = StylizedFeed.INSTANCE.frame();
-        float cell = (PANEL_HALF * 2f) / GRID;
+        int gridWidth = GRID_PER_BLOCK * width;
+        int gridHeight = GRID_PER_BLOCK * height;
+        float cellWidth = (halfWidth * 2f) / gridWidth;
+        float cellHeight = (halfHeight * 2f) / gridHeight;
 
-        for (int gy = 0; gy < GRID; gy++) {
-            for (int gx = 0; gx < GRID; gx++) {
+        for (int gy = 0; gy < gridHeight; gy++) {
+            for (int gx = 0; gx < gridWidth; gx++) {
                 int h = hash(gx, gy, (int) (seedBase & 0xFFFF));
                 int v = 30 + (h & 0x2F);                       // mostly dark greys
                 int r = v, g = v + ((h >>> 6) & 0x18), b = v + ((h >>> 8) & 0x20);
                 if ((h & 0x3F) == 0) {                         // occasional bright cell
                     r = 140; g = 220; b = 255;
                 }
-                float x1 = -PANEL_HALF + gx * cell;
-                float y1 = -PANEL_HALF + gy * cell;
-                quad(matrices, vertexConsumers, x1, y1, x1 + cell, y1 + cell, r, g, b);
+                float x1 = -halfWidth + gx * cellWidth;
+                float y1 = -halfHeight + gy * cellHeight;
+                quad(matrices, vertexConsumers, x1, y1,
+                        x1 + cellWidth, y1 + cellHeight, r, g, b);
             }
         }
     }
 
     /** Draws networked entity blips on top of the static. */
     private void drawBlips(MatrixStack matrices, VertexConsumerProvider vertexConsumers,
-                           ScreenBlockEntity blockEntity) {
+                           ScreenBlockEntity blockEntity, float halfWidth, float halfHeight) {
         for (FeedBlip blip : blockEntity.getClientBlips()) {
-            float px = -PANEL_HALF + blip.u() * PANEL_HALF * 2f;
-            float py = PANEL_HALF - blip.v() * PANEL_HALF * 2f;
-            float s = 0.028f;
+            float px = -halfWidth + blip.u() * halfWidth * 2f;
+            float py = halfHeight - blip.v() * halfHeight * 2f;
+            float s = 0.028f * Math.min(halfWidth * 2f, halfHeight * 2f);
             switch (blip.kind()) {
                 case FeedBlip.KIND_PLAYER -> quad(matrices, vertexConsumers,
                         px - s, py - s, px + s, py + s, 60, 255, 120);
@@ -163,9 +182,8 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
     }
 
     private void drawText(MatrixStack matrices, VertexConsumerProvider vertexConsumers,
-                          int light, Text text, float x, float y, int argb) {
+                          int light, Text text, float x, float y, float scale, int argb) {
         matrices.push();
-        float scale = 0.0105f;
         matrices.translate(x, y, FACE_OFFSET - 0.001f);
         // This face exposes TextRenderer's back, so mirror only its X axis.
         // A 180-degree Y rotation also reverses its depth-facing side and can
@@ -176,6 +194,12 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
                 false, positionMatrix, vertexConsumers,
                 TextRenderer.TextLayerType.POLYGON_OFFSET, 0, light);
         matrices.pop();
+    }
+
+    @Override
+    public boolean rendersOutsideBoundingBox(ScreenBlockEntity blockEntity) {
+        return blockEntity.getCachedState().getBlock() instanceof ScreenBlock block
+                && (block.getDisplayWidth() > 1 || block.getDisplayHeight() > 1);
     }
 
     private static void quad(MatrixStack matrices, VertexConsumerProvider vertexConsumers,
