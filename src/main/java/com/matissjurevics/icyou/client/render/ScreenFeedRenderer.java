@@ -35,6 +35,15 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
     // Give the dynamic surface a visible depth gap; a near-coplanar quad loses
     // the depth test to the baked display face, especially at oblique angles.
     private static final float FACE_OFFSET = 0.27f;
+    private static final float IDLE_FACE_OFFSET = 0.24f;
+    private static final float LOGO_FACE_OFFSET = 0.235f;
+    private static final String[] IDLE_LOGO = {
+            "1110111010101110101",
+            "0100100010101010101",
+            "0100100001001010101",
+            "0100100001001010101",
+            "1110111001001110111"
+    };
     private final TextRenderer textRenderer;
 
     public ScreenFeedRenderer(BlockEntityRendererFactory.Context context) {
@@ -128,12 +137,14 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
                                      float halfWidth, float halfHeight,
                                      int width, int height) {
         quad(matrices, vertexConsumers,
-                -halfWidth, -halfHeight, halfWidth, halfHeight, 0, 0, 0);
+                -halfWidth, -halfHeight, halfWidth, halfHeight,
+                IDLE_FACE_OFFSET, 0, 0, 0);
 
-        Text logo = Text.literal("ICyou").formatted(Formatting.BOLD);
-        float scale = 0.0225f * Math.min(width, height);
-        float logoHalfWidth = textRenderer.getWidth(logo) * scale / 2f;
-        float logoHalfHeight = 4.5f * scale;
+        float logoWidth = 0.68f * Math.min(width, height);
+        float pixel = logoWidth / IDLE_LOGO[0].length();
+        float logoHeight = pixel * IDLE_LOGO.length;
+        float logoHalfWidth = logoWidth / 2f;
+        float logoHalfHeight = logoHeight / 2f;
         float margin = 0.04f * Math.min(width, height);
         long frame = StylizedFeed.INSTANCE.frame();
 
@@ -143,8 +154,30 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
         float y = bounce(frame * 0.0045f + 0.37f,
                 -halfHeight + logoHalfHeight + margin,
                 halfHeight - logoHalfHeight - margin);
-        drawText(matrices, vertexConsumers, FULL_BRIGHT, logo,
-                x, y, scale, 0xFF60FF60);
+        drawPixelLogo(matrices, vertexConsumers, x, y, pixel,
+                logoHalfWidth, logoHalfHeight);
+    }
+
+    private void drawPixelLogo(MatrixStack matrices,
+                               VertexConsumerProvider vertexConsumers,
+                               float centerX, float centerY, float pixel,
+                               float halfWidth, float halfHeight) {
+        float left = centerX - halfWidth;
+        float bottom = centerY - halfHeight;
+        for (int row = 0; row < IDLE_LOGO.length; row++) {
+            String pixels = IDLE_LOGO[IDLE_LOGO.length - 1 - row];
+            for (int column = 0; column < pixels.length(); column++) {
+                if (pixels.charAt(column) != '1') {
+                    continue;
+                }
+                // Local screen X is mirrored when viewed from the display face.
+                float x1 = left + (pixels.length() - 1 - column) * pixel;
+                float y1 = bottom + row * pixel;
+                quad(matrices, vertexConsumers, x1, y1,
+                        x1 + pixel, y1 + pixel,
+                        LOGO_FACE_OFFSET, 96, 255, 96);
+            }
+        }
     }
 
     /** Triangle wave constrained to [min, max], producing a clean edge bounce. */
@@ -179,14 +212,17 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
     }
 
     private static void quad(MatrixStack matrices, VertexConsumerProvider vertexConsumers,
-                             float x1, float y1, float x2, float y2, int r, int g, int b) {
+                             float x1, float y1, float x2, float y2, float z,
+                             int r, int g, int b) {
         VertexConsumer buffer = vertexConsumers.getBuffer(RenderLayer.getDebugFilledBox());
         Matrix4f matrix = matrices.peek().getPositionMatrix();
-        float z = FACE_OFFSET;
+        // getDebugFilledBox uses a triangle strip: left-bottom, left-top,
+        // right-bottom, right-top. Standard quad ordering leaves one diagonal
+        // half culled, which caused the old triangular sparkle artifacts.
         buffer.vertex(matrix, x1, y1, z).color(r, g, b, 255);
         buffer.vertex(matrix, x1, y2, z).color(r, g, b, 255);
-        buffer.vertex(matrix, x2, y2, z).color(r, g, b, 255);
         buffer.vertex(matrix, x2, y1, z).color(r, g, b, 255);
+        buffer.vertex(matrix, x2, y2, z).color(r, g, b, 255);
     }
 
     private static float yawDegrees(Direction facing) {
