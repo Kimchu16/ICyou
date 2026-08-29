@@ -138,7 +138,7 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
         matrices.pop();
     }
 
-    /** Fills the panel with per-cell pseudo-random static, tinted like night vision. */
+    /** Fills the panel with neutral monochrome static. */
     private void drawStatic(MatrixStack matrices, VertexConsumerProvider vertexConsumers,
                             float halfWidth, float halfHeight, int width, int height) {
         long seedBase = StylizedFeed.INSTANCE.frame();
@@ -150,15 +150,11 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
         for (int gy = 0; gy < gridHeight; gy++) {
             for (int gx = 0; gx < gridWidth; gx++) {
                 int h = hash(gx, gy, (int) (seedBase & 0xFFFF));
-                int v = 30 + (h & 0x2F);                       // mostly dark greys
-                int r = v, g = v + ((h >>> 6) & 0x18), b = v + ((h >>> 8) & 0x20);
-                if ((h & 0x3F) == 0) {                         // occasional bright cell
-                    r = 140; g = 220; b = 255;
-                }
+                int v = 24 + (h & 0x1F); // restrained dark greys; no blue sparkle cells
                 float x1 = -halfWidth + gx * cellWidth;
                 float y1 = -halfHeight + gy * cellHeight;
                 quad(matrices, vertexConsumers, x1, y1,
-                        x1 + cellWidth, y1 + cellHeight, r, g, b);
+                        x1 + cellWidth, y1 + cellHeight, v, v, v);
             }
         }
     }
