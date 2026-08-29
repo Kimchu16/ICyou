@@ -14,6 +14,8 @@ import net.minecraft.state.StateManager;
 import net.minecraft.state.property.EnumProperty;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldAccess;
 
@@ -128,9 +130,22 @@ public class MultiblockScreenBlock extends ScreenBlock {
     protected BlockState getStateForNeighborUpdate(BlockState state, Direction direction,
                                                     BlockState neighborState, WorldAccess world,
                                                     BlockPos pos, BlockPos neighborPos) {
-        return isComplete(world, getControllerPos(state, pos), state.get(FACING))
-                ? state
-                : Blocks.AIR.getDefaultState();
+        // Minecraft sends neighbor updates while a block is still being placed.
+        // Validating synchronously here sees only the anchor and tears it down
+        // before onPlaced can install the remaining pieces. Defer the check by
+        // one tick so a complete display is evaluated as a single structure.
+        if (!isComplete(world, getControllerPos(state, pos), state.get(FACING))) {
+            world.scheduleBlockTick(pos, this, 1);
+        }
+        return state;
+    }
+
+    @Override
+    protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos,
+                                 Random random) {
+        if (!isComplete(world, getControllerPos(state, pos), state.get(FACING))) {
+            world.setBlockState(pos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+        }
     }
 
     @Override
