@@ -10,6 +10,7 @@ import com.matissjurevics.icyou.registry.ModDataComponentTypes;
 import com.matissjurevics.icyou.registry.ModItemGroups;
 import com.matissjurevics.icyou.registry.ModItems;
 import com.matissjurevics.icyou.registry.ModNetworking;
+import com.matissjurevics.icyou.web.ServerWebLifecycle;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import org.slf4j.Logger;
@@ -42,6 +43,7 @@ public class ICyouMod implements ModInitializer {
                 LOGGER.info("Removed {} expired camera tombstones", purged);
             }
         });
+        ServerWebLifecycle.register();
 
         LOGGER.info("ICyou has been initialized!");
     }

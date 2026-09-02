@@ -47,7 +47,10 @@ it in the commit that changes a roadmap item's status or contract.
   restoration, 30-day expiry, and persistence.
 - PR 5 child PR #13 CI passed and was squash-merged as `7cbe091`; its local and
   remote child branches were deleted.
-- Current work: stopped after PR 5. Next dependency: PR 6 server web lifecycle.
+- PR 6 verification: `gradlew clean test build` passed locally with 28 tests;
+  six focused tests cover safe config, bind lifecycle, health, failure, and cleanup.
+- Current work: PR 6 server web lifecycle is active on
+  `feature/cam-06-server-web-lifecycle`.
 
 ## Roadmap and dependency status
 
@@ -61,7 +64,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 3 | Device integration | DONE | 2 |
 | 4 | Migration, backup, ambiguity report | DONE | 3 |
 | 5 | Ownership and tombstones | DONE | 4 |
-| 6 | Server web lifecycle | READY | 2 |
+| 6 | Server web lifecycle | ACTIVE | 2 |
 | 7 | Web gateway seam | BLOCKED | 6 |
 | 8 | Terminal authentication | BLOCKED | 5, 7 |
 | 9 | Web demand | BLOCKED | 8 |
@@ -170,6 +173,24 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   tests pass.
 - [x] `gradlew clean test build` passes after the full PR 5 change (22 tests).
 - [x] Child PR CI passes and the PR is squash-merged into the integration branch.
+
+## PR 6 acceptance criteria
+
+- [x] The web listener belongs to the logical Minecraft server and starts after
+  server initialization, not during client startup.
+- [x] Server stopping closes the listener socket and client executor; repeated
+  start and stop calls are safe.
+- [x] The listener is disabled by default and defaults to loopback when enabled.
+- [x] Configuration validates bind and port values and treats invalid files as
+  a contained listener failure rather than a server crash.
+- [x] The common lifecycle has no Minecraft client or rendering dependencies, so
+  the same code can run on integrated, LAN, and dedicated servers.
+- [x] Until PR 7 adds the gateway seam, the listener exposes only a no-store
+  `/health` response and no device metadata.
+- [x] Focused tests cover opt-in configuration, idempotent startup, health,
+  occupied-port failure, and deterministic cleanup.
+- [x] `gradlew clean test build` passes after the full PR 6 change (28 tests).
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
