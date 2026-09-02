@@ -42,8 +42,11 @@ it in the commit that changes a roadmap item's status or contract.
   and lazy upgrades for legacy item links.
 - PR 4 child PR #12 CI passed and was squash-merged as `49d8ed2`; its local and
   remote child branches were deleted.
-- Current work: stopped after PR 4. Next dependency: PR 5 ownership and
-  tombstones.
+- PR 5 verification: `gradlew clean test build` passed locally with 22 tests;
+  focused registry tests cover ownership, authorization decisions, atomic
+  restoration, 30-day expiry, and persistence.
+- Current work: PR 5 ownership and tombstones is active on
+  `feature/cam-05-ownership-tombstones`.
 
 ## Roadmap and dependency status
 
@@ -56,7 +59,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 2 | Server-global registry | DONE | 1 |
 | 3 | Device integration | DONE | 2 |
 | 4 | Migration, backup, ambiguity report | DONE | 3 |
-| 5 | Ownership and tombstones | READY | 4 |
+| 5 | Ownership and tombstones | ACTIVE | 4 |
 | 6 | Server web lifecycle | BLOCKED | 2 |
 | 7 | Web gateway seam | BLOCKED | 6 |
 | 8 | Terminal authentication | BLOCKED | 5, 7 |
@@ -146,6 +149,26 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 - [x] Focused migration, backup, ambiguity, and persistence tests pass.
 - [x] `gradlew clean test build` passes after the full PR 4 change (18 tests).
 - [x] Child PR CI passes and the PR is squash-merged into the integration branch.
+
+## PR 5 acceptance criteria
+
+- [x] Player-placed terminals record the placing player's UUID as owner.
+- [x] Migrated unowned terminals can be claimed once; owner transfer is an
+  explicit registry operation and operators retain management access.
+- [x] Terminal use, device mutations, subscriptions, setup links, and portable
+  screen pairing reject players who are neither owner nor operator.
+- [x] Breaking a registered camera creates a 30-day tombstone that keeps its
+  UUID, terminal ownership, name, and screen assignments.
+- [x] A linked Setup Remote can restore a tombstoned camera at a new unlinked
+  location, including another dimension, without changing its UUID.
+- [x] Restoration validates all conflicts before changing state; expiry removes
+  old tombstones and clears their screen assignments.
+- [x] Owners and tombstones survive save/reload while older schema-1 saves remain
+  readable when the new optional fields are absent.
+- [x] Focused ownership, authorization, restoration, expiry, and persistence
+  tests pass.
+- [x] `gradlew clean test build` passes after the full PR 5 change (22 tests).
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 

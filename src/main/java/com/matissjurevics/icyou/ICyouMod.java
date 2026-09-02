@@ -1,7 +1,9 @@
 package com.matissjurevics.icyou;
 
-import com.matissjurevics.icyou.feed.FeedManager;
+import java.time.Instant;
+
 import com.matissjurevics.icyou.device.LegacyDeviceMigration;
+import com.matissjurevics.icyou.feed.FeedManager;
 import com.matissjurevics.icyou.registry.ModBlockEntities;
 import com.matissjurevics.icyou.registry.ModBlocks;
 import com.matissjurevics.icyou.registry.ModDataComponentTypes;
@@ -32,7 +34,14 @@ public class ICyouMod implements ModInitializer {
         ModItems.register();
         ModItemGroups.register();
         FeedManager.init();
-        ServerLifecycleEvents.SERVER_STARTED.register(LegacyDeviceMigration::migrateIfNeeded);
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            LegacyDeviceMigration.migrateIfNeeded(server);
+            int purged = com.matissjurevics.icyou.device.GlobalDeviceRegistry.get(server)
+                    .purgeExpiredTombstones(Instant.now());
+            if (purged > 0) {
+                LOGGER.info("Removed {} expired camera tombstones", purged);
+            }
+        });
 
         LOGGER.info("ICyou has been initialized!");
     }
