@@ -51,7 +51,10 @@ it in the commit that changes a roadmap item's status or contract.
   six focused tests cover safe config, bind lifecycle, health, failure, and cleanup.
 - PR 6 child PR #14 CI passed and was squash-merged as `d8e76f1`; its local and
   remote child branches were deleted.
-- Current work: stopped after PR 6. Next dependency: PR 7 web gateway seam.
+- PR 7 verification: `gradlew clean test build` passed locally with 30 tests;
+  gateway tests cover neutral routing, defensive bytes, and safe headers.
+- Current work: PR 7 web gateway seam is active on
+  `feature/cam-07-web-gateway-seam`.
 
 ## Roadmap and dependency status
 
@@ -66,7 +69,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 4 | Migration, backup, ambiguity report | DONE | 3 |
 | 5 | Ownership and tombstones | DONE | 4 |
 | 6 | Server web lifecycle | DONE | 2 |
-| 7 | Web gateway seam | READY | 6 |
+| 7 | Web gateway seam | ACTIVE | 6 |
 | 8 | Terminal authentication | BLOCKED | 5, 7 |
 | 9 | Web demand | BLOCKED | 8 |
 | 10 | Unified demand manager | BLOCKED | 9, 3 |
@@ -192,6 +195,25 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   occupied-port failure, and deterministic cleanup.
 - [x] `gradlew clean test build` passes after the full PR 6 change (28 tests).
 - [x] Child PR CI passes and the PR is squash-merged into the integration branch.
+
+## PR 7 acceptance criteria
+
+- [x] Server lifecycle code depends on `WebGateway`, not the embedded socket
+  implementation.
+- [x] `EmbeddedWebGateway` adapts the PR 6 listener to the gateway contract while
+  preserving its start, health, failure, and shutdown behavior.
+- [x] Request handlers receive transport-neutral method/path values and return
+  transport-neutral status, content type, headers, and bytes.
+- [x] Response bodies and headers are defensively copied and validated against
+  response-splitting injection.
+- [x] Handler failures return a contained 500 response without stopping the
+  Minecraft server or listener.
+- [x] A future `RelayWebGateway` can implement the same interface without changes
+  to lifecycle, authorization, or demand callers.
+- [x] Focused tests cover the interface through the embedded adapter, request and
+  response translation, routing, defensive copies, and unsafe headers.
+- [x] `gradlew clean test build` passes after the full PR 7 change (30 tests).
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 

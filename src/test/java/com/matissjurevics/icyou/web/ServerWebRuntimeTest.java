@@ -20,7 +20,7 @@ class ServerWebRuntimeTest {
     void disabledRuntimeDoesNotBind() {
         ServerWebRuntime runtime = new ServerWebRuntime(null);
 
-        assertFalse(runtime.start(WebServerConfig.DISABLED));
+        assertFalse(runtime.start(WebServerConfig.DISABLED, request -> WebResponse.notFound()));
         assertEquals(ServerWebRuntime.State.STOPPED, runtime.state());
         assertTrue(runtime.boundAddress().isEmpty());
     }
@@ -30,9 +30,11 @@ class ServerWebRuntimeTest {
         ServerWebRuntime runtime = new ServerWebRuntime(null);
         WebServerConfig config = new WebServerConfig(true, "127.0.0.1", 0);
 
-        assertTrue(runtime.start(config));
+        WebRequestHandler handler = request -> request.path().equals("/health")
+                ? WebResponse.json(200, "{\"status\":\"ok\"}") : WebResponse.notFound();
+        assertTrue(runtime.start(config, handler));
         int port = runtime.boundAddress().orElseThrow().getPort();
-        assertTrue(runtime.start(config));
+        assertTrue(runtime.start(config, handler));
         assertEquals(port, runtime.boundAddress().orElseThrow().getPort());
 
         try (Socket client = new Socket("127.0.0.1", port);
@@ -60,7 +62,7 @@ class ServerWebRuntimeTest {
             WebServerConfig config = new WebServerConfig(
                     true, "127.0.0.1", occupied.getLocalPort());
 
-            assertFalse(runtime.start(config));
+            assertFalse(runtime.start(config, request -> WebResponse.notFound()));
             assertEquals(ServerWebRuntime.State.FAILED, runtime.state());
             assertEquals(1, failures.get());
             assertTrue(runtime.boundAddress().isEmpty());
