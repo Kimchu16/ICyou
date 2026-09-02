@@ -8,11 +8,14 @@ it in the commit that changes a roadmap item's status or contract.
 - Integration: local `feature/camera-overhaul`, based on `main` commit
   `8d3d0b7`. The primary worktree keeps `main`; the Codex worktree owns the
   integration branch.
-- Umbrella PR: planned draft `feature/camera-overhaul -> main`; not published.
+- Umbrella PR: planned draft `feature/camera-overhaul -> main`.
 - Child PRs: preserve the numbered cut points below as verified commits and
   target the integration branch. Prefer squash merge for child PRs and a merge
   commit for the eventual umbrella PR.
-- No branches, commits, or PRs have been pushed or published.
+- Publishing authorization: non-`main` branches may be pushed and child PRs may
+  be opened/merged without further approval when required CI passes. Direct
+  pushes to `main` are forbidden.
+- CI is configured for PRs targeting both `main` and the integration branch.
 - `main` remains the target for ordinary urgent fixes, followed by integration.
 
 ## Current decisions and evidence
