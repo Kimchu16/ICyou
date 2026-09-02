@@ -45,6 +45,7 @@ public final class GlobalDeviceRegistry extends PersistentState {
     private final Map<DeviceLocation, UUID> deviceIdsByLocation = new LinkedHashMap<>();
     private final Map<UUID, LinkedHashSet<UUID>> cameraIdsByTerminal = new LinkedHashMap<>();
     private final Map<UUID, LinkedHashSet<UUID>> screenIdsByTerminal = new LinkedHashMap<>();
+    private boolean legacyMigrationComplete;
 
     public record TerminalEntry(TerminalRef ref) {
         public TerminalEntry {
@@ -99,6 +100,29 @@ public final class GlobalDeviceRegistry extends PersistentState {
         slugByTerminal.put(ref.deviceId(), validatedSlug);
         markDirty();
         return entry;
+    }
+
+    TerminalEntry registerMigratedTerminal(TerminalRef ref, String legacySlug) {
+        return registerTerminal(ref, legacySlug);
+    }
+
+    static GlobalDeviceRegistry copyOf(GlobalDeviceRegistry source,
+                                       RegistryWrapper.WrapperLookup lookup) {
+        return readNbt(source.writeNbt(new NbtCompound(), lookup), lookup);
+    }
+
+    static void install(MinecraftServer server, GlobalDeviceRegistry registry) {
+        registry.markDirty();
+        server.getOverworld().getPersistentStateManager().set(PERSISTENCE_KEY, registry);
+    }
+
+    public boolean isLegacyMigrationComplete() {
+        return legacyMigrationComplete;
+    }
+
+    void markLegacyMigrationComplete() {
+        legacyMigrationComplete = true;
+        markDirty();
     }
 
     public CameraEntry registerCamera(CameraRef ref, UUID terminalId, String name) {
@@ -285,6 +309,7 @@ public final class GlobalDeviceRegistry extends PersistentState {
     @Override
     public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
         nbt.putInt(SCHEMA_VERSION_KEY, CameraOverhaulContracts.SAVE_SCHEMA_VERSION);
+        nbt.putBoolean("legacyMigrationComplete", legacyMigrationComplete);
 
         NbtList terminalList = new NbtList();
         for (TerminalEntry entry : terminals.values()) {
@@ -328,6 +353,7 @@ public final class GlobalDeviceRegistry extends PersistentState {
         }
 
         GlobalDeviceRegistry registry = new GlobalDeviceRegistry();
+        registry.legacyMigrationComplete = nbt.getBoolean("legacyMigrationComplete");
         NbtList terminalList = nbt.getList("terminals", NbtElement.COMPOUND_TYPE);
         for (int i = 0; i < terminalList.size(); i++) {
             NbtCompound tag = terminalList.getCompound(i);

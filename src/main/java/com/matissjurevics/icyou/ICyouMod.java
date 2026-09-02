@@ -1,6 +1,7 @@
 package com.matissjurevics.icyou;
 
 import com.matissjurevics.icyou.feed.FeedManager;
+import com.matissjurevics.icyou.device.LegacyDeviceMigration;
 import com.matissjurevics.icyou.registry.ModBlockEntities;
 import com.matissjurevics.icyou.registry.ModBlocks;
 import com.matissjurevics.icyou.registry.ModDataComponentTypes;
@@ -8,6 +9,7 @@ import com.matissjurevics.icyou.registry.ModItemGroups;
 import com.matissjurevics.icyou.registry.ModItems;
 import com.matissjurevics.icyou.registry.ModNetworking;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +32,7 @@ public class ICyouMod implements ModInitializer {
         ModItems.register();
         ModItemGroups.register();
         FeedManager.init();
+        ServerLifecycleEvents.SERVER_STARTED.register(LegacyDeviceMigration::migrateIfNeeded);
 
         LOGGER.info("ICyou has been initialized!");
     }

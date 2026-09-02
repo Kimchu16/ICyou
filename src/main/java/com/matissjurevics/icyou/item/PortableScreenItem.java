@@ -6,6 +6,7 @@ import com.matissjurevics.icyou.device.TerminalRef;
 import com.matissjurevics.icyou.registry.ModDataComponentTypes;
 import com.matissjurevics.icyou.terminal.CameraTerminalBlock;
 import com.matissjurevics.icyou.terminal.CameraTerminalBlockEntity;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 import net.minecraft.entity.player.PlayerEntity;
@@ -47,6 +48,8 @@ public class PortableScreenItem extends Item {
                 UUID wirelessId = UUID.randomUUID();
                 stack.set(ModDataComponentTypes.LINKED_TERMINAL, terminalRef);
                 stack.set(ModDataComponentTypes.WIRELESS_ID, wirelessId);
+                stack.remove(ModDataComponentTypes.LEGACY_LINKED_TERMINAL);
+                stack.remove(ModDataComponentTypes.LEGACY_WIRELESS_ID);
                 if (player != null) {
                     player.sendMessage(Text.literal("Portable screen paired"), true);
                 }
@@ -69,7 +72,10 @@ public class PortableScreenItem extends Item {
             return TypedActionResult.pass(stack);
         }
 
-        // Server side: validate pairing.
+        // Server side: upgrade a 0.2.0 position/int link, then validate pairing.
+        if (world instanceof ServerWorld serverWorld) {
+            upgradeLegacyLink(stack, serverWorld);
+        }
         TerminalRef terminal = stack.get(ModDataComponentTypes.LINKED_TERMINAL);
         if (terminal == null) {
             user.sendMessage(Text.literal(
@@ -83,5 +89,30 @@ public class PortableScreenItem extends Item {
             return TypedActionResult.fail(stack);
         }
         return TypedActionResult.success(stack, false);
+    }
+
+    private static void upgradeLegacyLink(ItemStack stack, ServerWorld world) {
+        if (stack.get(ModDataComponentTypes.LINKED_TERMINAL) != null) {
+            return;
+        }
+        BlockPos position = stack.get(ModDataComponentTypes.LEGACY_LINKED_TERMINAL);
+        if (position == null) {
+            return;
+        }
+        GlobalDeviceRegistry registry = GlobalDeviceRegistry.get(world.getServer());
+        registry.deviceAt(new com.matissjurevics.icyou.device.DeviceLocation(
+                        world.getRegistryKey(), position))
+                .filter(TerminalRef.class::isInstance)
+                .map(TerminalRef.class::cast)
+                .ifPresent(terminal -> {
+                    stack.set(ModDataComponentTypes.LINKED_TERMINAL, terminal);
+                    Integer legacyId = stack.get(ModDataComponentTypes.LEGACY_WIRELESS_ID);
+                    String source = "icyou:0.2.0:wireless:" + world.getRegistryKey().getValue()
+                            + ':' + (legacyId == null ? 0 : legacyId) + ':' + position.asLong();
+                    stack.set(ModDataComponentTypes.WIRELESS_ID, UUID.nameUUIDFromBytes(
+                            source.getBytes(StandardCharsets.UTF_8)));
+                    stack.remove(ModDataComponentTypes.LEGACY_LINKED_TERMINAL);
+                    stack.remove(ModDataComponentTypes.LEGACY_WIRELESS_ID);
+                });
     }
 }

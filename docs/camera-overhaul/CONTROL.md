@@ -36,9 +36,10 @@ it in the commit that changes a roadmap item's status or contract.
   the legacy-registry runtime-consumer audit returned no matches.
 - PR 3 child PR #11 CI passed and was squash-merged as `d33ae28`; its local and
   remote child branches were deleted.
-- Current work: stopped after PR 3. Next dependency: PR 4 migration.
-- Existing runtime consumers still use position/int identity; conversion is
-  intentionally deferred to PR 3.
+- Current work: PR 4 migration is active on `feature/cam-04-migration`.
+- PR 4 verification: `gradlew clean test build` passed locally with 18 tests
+  after adding backup-first conversion, an ambiguity report, migration state,
+  and lazy upgrades for legacy item links.
 
 ## Roadmap and dependency status
 
@@ -50,7 +51,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 1 | Dimension-aware device identity | DONE | 0 |
 | 2 | Server-global registry | DONE | 1 |
 | 3 | Device integration | DONE | 2 |
-| 4 | Migration, backup, ambiguity report | READY | 3 |
+| 4 | Migration, backup, ambiguity report | ACTIVE | 3 |
 | 5 | Ownership and tombstones | BLOCKED | 4 |
 | 6 | Server web lifecycle | BLOCKED | 2 |
 | 7 | Web gateway seam | BLOCKED | 6 |
@@ -125,6 +126,22 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 - [x] Every migrated device payload round-trips typed references in a focused test.
 - [x] `gradlew clean test build` passes after the full PR 3 change.
 - [x] Child PR CI passes and the PR is squash-merged into the integration branch.
+
+## PR 4 acceptance criteria
+
+- [x] Every discovered 0.2.0 registry file is copied byte-for-byte before it is
+  loaded for conversion.
+- [x] Legacy terminal, camera, screen, name, slug, ownership, and assignment
+  data is converted into dimension-aware global registry entries.
+- [x] Converted UUIDs are deterministic so a retry produces the same identity.
+- [x] Missing, duplicate, and conflicting relationships are recorded in a
+  readable migration report while valid entries are retained.
+- [x] A saved completion marker makes migration run once per logical server.
+- [x] Old item component IDs retain their 0.2.0 codecs and upgrade lazily to new
+  typed reference/UUID components when used.
+- [x] Focused migration, backup, ambiguity, and persistence tests pass.
+- [x] `gradlew clean test build` passes after the full PR 4 change (18 tests).
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 

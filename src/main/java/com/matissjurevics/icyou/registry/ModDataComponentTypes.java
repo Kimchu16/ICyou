@@ -9,6 +9,7 @@ import net.minecraft.component.ComponentType;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
 
 /**
  * Item data components. Components are the 1.21 replacement for arbitrary
@@ -17,6 +18,26 @@ import net.minecraft.util.Identifier;
 public final class ModDataComponentTypes {
 
     private ModDataComponentTypes() {}
+
+    /** 0.2.0 position component retained so old items can be read and upgraded. */
+    public static final ComponentType<BlockPos> LEGACY_LINKED_CAMERA =
+            ComponentType.<BlockPos>builder().codec(BlockPos.CODEC)
+                    .packetCodec(BlockPos.PACKET_CODEC).build();
+
+    /** 0.2.0 terminal position retained so old portable screens can be read. */
+    public static final ComponentType<BlockPos> LEGACY_LINKED_TERMINAL =
+            ComponentType.<BlockPos>builder().codec(BlockPos.CODEC)
+                    .packetCodec(BlockPos.PACKET_CODEC).build();
+
+    /** 0.2.0 screen position retained so old remotes can be read and upgraded. */
+    public static final ComponentType<BlockPos> LEGACY_LINKED_SCREEN =
+            ComponentType.<BlockPos>builder().codec(BlockPos.CODEC)
+                    .packetCodec(BlockPos.PACKET_CODEC).build();
+
+    /** 0.2.0 integer wireless ID retained for safe item deserialization. */
+    public static final ComponentType<Integer> LEGACY_WIRELESS_ID =
+            ComponentType.<Integer>builder().codec(com.mojang.serialization.Codec.INT)
+                    .packetCodec(net.minecraft.network.codec.PacketCodecs.VAR_INT).build();
 
     /** Stable camera reference currently carried by a Setup Remote. */
     public static final ComponentType<CameraRef> LINKED_CAMERA = ComponentType.<CameraRef>builder()
@@ -44,12 +65,20 @@ public final class ModDataComponentTypes {
 
     public static void register() {
         Registry.register(Registries.DATA_COMPONENT_TYPE,
-                Identifier.of(ICyouMod.MOD_ID, "linked_camera"), LINKED_CAMERA);
+                Identifier.of(ICyouMod.MOD_ID, "linked_camera"), LEGACY_LINKED_CAMERA);
         Registry.register(Registries.DATA_COMPONENT_TYPE,
-                Identifier.of(ICyouMod.MOD_ID, "linked_terminal"), LINKED_TERMINAL);
+                Identifier.of(ICyouMod.MOD_ID, "linked_terminal"), LEGACY_LINKED_TERMINAL);
         Registry.register(Registries.DATA_COMPONENT_TYPE,
-                Identifier.of(ICyouMod.MOD_ID, "linked_screen"), LINKED_SCREEN);
+                Identifier.of(ICyouMod.MOD_ID, "linked_screen"), LEGACY_LINKED_SCREEN);
         Registry.register(Registries.DATA_COMPONENT_TYPE,
-                Identifier.of(ICyouMod.MOD_ID, "wireless_id"), WIRELESS_ID);
+                Identifier.of(ICyouMod.MOD_ID, "wireless_id"), LEGACY_WIRELESS_ID);
+        Registry.register(Registries.DATA_COMPONENT_TYPE,
+                Identifier.of(ICyouMod.MOD_ID, "linked_camera_ref"), LINKED_CAMERA);
+        Registry.register(Registries.DATA_COMPONENT_TYPE,
+                Identifier.of(ICyouMod.MOD_ID, "linked_terminal_ref"), LINKED_TERMINAL);
+        Registry.register(Registries.DATA_COMPONENT_TYPE,
+                Identifier.of(ICyouMod.MOD_ID, "linked_screen_ref"), LINKED_SCREEN);
+        Registry.register(Registries.DATA_COMPONENT_TYPE,
+                Identifier.of(ICyouMod.MOD_ID, "wireless_uuid"), WIRELESS_ID);
     }
 }
