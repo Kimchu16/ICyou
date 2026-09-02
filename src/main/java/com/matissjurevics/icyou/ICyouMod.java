@@ -3,6 +3,7 @@ package com.matissjurevics.icyou;
 import java.time.Instant;
 
 import com.matissjurevics.icyou.device.LegacyDeviceMigration;
+import com.matissjurevics.icyou.demand.ServerDemandLifecycle;
 import com.matissjurevics.icyou.feed.FeedManager;
 import com.matissjurevics.icyou.registry.ModBlockEntities;
 import com.matissjurevics.icyou.registry.ModBlocks;
@@ -45,6 +46,7 @@ public class ICyouMod implements ModInitializer {
             }
         });
         ServerWebLifecycle.register();
+        ServerDemandLifecycle.register();
         TerminalAuthCommands.register();
 
         LOGGER.info("ICyou has been initialized!");
