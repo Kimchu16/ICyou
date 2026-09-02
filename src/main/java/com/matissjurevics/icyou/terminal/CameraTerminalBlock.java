@@ -1,6 +1,7 @@
 package com.matissjurevics.icyou.terminal;
 
 import com.matissjurevics.icyou.camera.CameraViews;
+import com.matissjurevics.icyou.device.GlobalDeviceRegistry;
 import com.matissjurevics.icyou.network.DeviceSubscriptions;
 
 import net.minecraft.block.Block;
@@ -93,7 +94,8 @@ public class CameraTerminalBlock extends Block implements BlockEntityProvider {
         super.onPlaced(world, pos, state, placer, itemStack);
         if (world instanceof ServerWorld serverWorld
                 && world.getBlockEntity(pos) instanceof CameraTerminalBlockEntity terminal) {
-            terminal.initialize(serverWorld);
+            terminal.initialize(serverWorld,
+                    placer instanceof PlayerEntity player ? player.getUuid() : null);
         }
     }
 
@@ -113,7 +115,15 @@ public class CameraTerminalBlock extends Block implements BlockEntityProvider {
         if (!(world.getBlockEntity(pos) instanceof CameraTerminalBlockEntity terminal)) {
             return ActionResult.FAIL;
         }
-        var terminalRef = terminal.initialize(serverWorld);
+        var terminalRef = terminal.initialize(serverWorld, player.getUuid());
+        GlobalDeviceRegistry registry = GlobalDeviceRegistry.get(serverWorld.getServer());
+        boolean operator = player instanceof ServerPlayerEntity serverPlayer
+                && serverPlayer.hasPermissionLevel(2);
+        if (!registry.canManageTerminal(terminalRef.deviceId(), player.getUuid(), operator)) {
+            player.sendMessage(Text.literal(
+                    "Only the terminal owner or an operator can manage it."), false);
+            return ActionResult.FAIL;
+        }
 
         if (player.isSneaking()) {
             player.sendMessage(Text.literal("── ICyou LIVE ──"), false);

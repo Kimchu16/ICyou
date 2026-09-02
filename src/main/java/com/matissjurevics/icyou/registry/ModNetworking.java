@@ -40,6 +40,10 @@ public final class ModNetworking {
             try {
                 var terminal = reg.terminal(payload.terminal().deviceId())
                         .filter(entry -> entry.ref().equals(payload.terminal())).orElseThrow();
+                if (!reg.canManageTerminal(terminal.ref().deviceId(), ctx.player().getUuid(),
+                        ctx.player().hasPermissionLevel(2))) {
+                    return;
+                }
                 ok = switch (payload.action()) {
                     case DeviceActionC2SPayload.ACTION_ASSIGN -> {
                         var screen = reg.screen(payload.id()).orElseThrow();
@@ -94,7 +98,9 @@ public final class ModNetworking {
                     var registry = GlobalDeviceRegistry.get(player.getServer());
                     var terminal = registry.terminal(payload.terminal().deviceId())
                             .filter(entry -> entry.ref().equals(payload.terminal()));
-                    if (terminal.isEmpty()) {
+                    if (terminal.isEmpty() || !registry.canManageTerminal(
+                            payload.terminal().deviceId(), player.getUuid(),
+                            player.hasPermissionLevel(2))) {
                         return;
                     }
                     if (payload.subscribe()) {

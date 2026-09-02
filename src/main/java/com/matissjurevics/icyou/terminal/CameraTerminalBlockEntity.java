@@ -30,16 +30,31 @@ public class CameraTerminalBlockEntity extends BlockEntity {
     }
 
     public TerminalRef initialize(ServerWorld world) {
+        return initialize(world, null);
+    }
+
+    public TerminalRef initialize(ServerWorld world, UUID ownerId) {
         GlobalDeviceRegistry registry = GlobalDeviceRegistry.get(world.getServer());
         if (terminalRef == null) {
             terminalRef = registry.deviceAt(new DeviceLocation(world.getRegistryKey(), pos))
                     .filter(TerminalRef.class::isInstance)
                     .map(TerminalRef.class::cast)
-                    .orElseGet(() -> registry.registerTerminal(new TerminalRef(
-                            UUID.randomUUID(), world.getRegistryKey(), pos)).ref());
+                    .orElseGet(() -> {
+                        TerminalRef ref = new TerminalRef(
+                                UUID.randomUUID(), world.getRegistryKey(), pos);
+                        return ownerId == null ? registry.registerTerminal(ref).ref()
+                                : registry.registerTerminal(ref, ownerId).ref();
+                    });
             markDirty();
         } else if (registry.terminal(terminalRef.deviceId()).isEmpty()) {
-            registry.registerTerminal(terminalRef);
+            if (ownerId == null) {
+                registry.registerTerminal(terminalRef);
+            } else {
+                registry.registerTerminal(terminalRef, ownerId);
+            }
+        }
+        if (ownerId != null) {
+            registry.claimTerminal(terminalRef.deviceId(), ownerId);
         }
         return terminalRef;
     }

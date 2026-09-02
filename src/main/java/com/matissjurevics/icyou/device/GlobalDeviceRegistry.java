@@ -1,5 +1,7 @@
 package com.matissjurevics.icyou.device;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -39,6 +41,7 @@ public final class GlobalDeviceRegistry extends PersistentState {
     private final Map<UUID, TerminalEntry> terminals = new LinkedHashMap<>();
     private final Map<UUID, CameraEntry> cameras = new LinkedHashMap<>();
     private final Map<UUID, ScreenEntry> screens = new LinkedHashMap<>();
+    private final Map<UUID, CameraTombstone> cameraTombstones = new LinkedHashMap<>();
     private final Map<UUID, String> slugByTerminal = new LinkedHashMap<>();
 
     private final Map<UUID, DeviceRef> devicesById = new LinkedHashMap<>();
@@ -47,9 +50,24 @@ public final class GlobalDeviceRegistry extends PersistentState {
     private final Map<UUID, LinkedHashSet<UUID>> screenIdsByTerminal = new LinkedHashMap<>();
     private boolean legacyMigrationComplete;
 
-    public record TerminalEntry(TerminalRef ref) {
+    public record TerminalEntry(TerminalRef ref, Optional<UUID> ownerId) {
         public TerminalEntry {
             ref = Objects.requireNonNull(ref, "ref");
+            ownerId = Objects.requireNonNull(ownerId, "ownerId");
+        }
+    }
+
+    public record CameraTombstone(CameraRef lastRef, UUID terminalId, String name,
+                                  Instant brokenAt) {
+        public CameraTombstone {
+            lastRef = Objects.requireNonNull(lastRef, "lastRef");
+            terminalId = Objects.requireNonNull(terminalId, "terminalId");
+            name = validateName(name);
+            brokenAt = Objects.requireNonNull(brokenAt, "brokenAt");
+        }
+
+        public UUID cameraId() {
+            return lastRef.deviceId();
         }
     }
 
@@ -78,21 +96,30 @@ public final class GlobalDeviceRegistry extends PersistentState {
     }
 
     public TerminalEntry registerTerminal(TerminalRef ref) {
+        return registerTerminal(ref, Optional.empty());
+    }
+
+    public TerminalEntry registerTerminal(TerminalRef ref, UUID ownerId) {
+        return registerTerminal(ref, Optional.of(Objects.requireNonNull(ownerId, "ownerId")));
+    }
+
+    private TerminalEntry registerTerminal(TerminalRef ref, Optional<UUID> ownerId) {
         String slug;
         do {
             slug = SlugToken.generate();
         } while (slugByTerminal.containsValue(slug));
-        return registerTerminal(ref, slug);
+        return registerTerminal(ref, slug, ownerId);
     }
 
-    private TerminalEntry registerTerminal(TerminalRef ref, String slug) {
+    private TerminalEntry registerTerminal(TerminalRef ref, String slug,
+                                           Optional<UUID> ownerId) {
         Objects.requireNonNull(ref, "ref");
         requireAvailable(ref);
         String validatedSlug = requireSlug(slug);
         if (slugByTerminal.containsValue(validatedSlug)) {
             throw new IllegalArgumentException("Duplicate terminal slug: " + validatedSlug);
         }
-        TerminalEntry entry = new TerminalEntry(ref);
+        TerminalEntry entry = new TerminalEntry(ref, ownerId);
         terminals.put(ref.deviceId(), entry);
         index(ref);
         cameraIdsByTerminal.put(ref.deviceId(), new LinkedHashSet<>());
@@ -103,7 +130,7 @@ public final class GlobalDeviceRegistry extends PersistentState {
     }
 
     TerminalEntry registerMigratedTerminal(TerminalRef ref, String legacySlug) {
-        return registerTerminal(ref, legacySlug);
+        return registerTerminal(ref, legacySlug, Optional.empty());
     }
 
     static GlobalDeviceRegistry copyOf(GlobalDeviceRegistry source,
@@ -163,6 +190,10 @@ public final class GlobalDeviceRegistry extends PersistentState {
         return Optional.ofNullable(screens.get(deviceId));
     }
 
+    public Optional<CameraTombstone> cameraTombstone(UUID cameraId) {
+        return Optional.ofNullable(cameraTombstones.get(cameraId));
+    }
+
     public Optional<DeviceRef> device(UUID deviceId) {
         return Optional.ofNullable(devicesById.get(deviceId));
     }
@@ -182,6 +213,40 @@ public final class GlobalDeviceRegistry extends PersistentState {
 
     public Set<UUID> terminalIds() {
         return Set.copyOf(terminals.keySet());
+    }
+
+    public List<CameraTombstone> tombstonesFor(UUID terminalId) {
+        requireTerminal(terminalId);
+        return cameraTombstones.values().stream()
+                .filter(tombstone -> tombstone.terminalId().equals(terminalId)).toList();
+    }
+
+    public boolean canManageTerminal(UUID terminalId, UUID playerId, boolean operator) {
+        Objects.requireNonNull(playerId, "playerId");
+        TerminalEntry terminal = terminals.get(terminalId);
+        return terminal != null && (operator
+                || terminal.ownerId().filter(playerId::equals).isPresent());
+    }
+
+    public boolean claimTerminal(UUID terminalId, UUID playerId) {
+        Objects.requireNonNull(playerId, "playerId");
+        TerminalEntry terminal = terminals.get(terminalId);
+        if (terminal == null || terminal.ownerId().isPresent()) {
+            return false;
+        }
+        terminals.put(terminalId, new TerminalEntry(terminal.ref(), Optional.of(playerId)));
+        markDirty();
+        return true;
+    }
+
+    public void transferTerminal(UUID terminalId, UUID newOwnerId) {
+        TerminalEntry terminal = terminals.get(terminalId);
+        if (terminal == null) {
+            throw new IllegalArgumentException("Unknown terminal UUID: " + terminalId);
+        }
+        terminals.put(terminalId, new TerminalEntry(terminal.ref(),
+                Optional.of(Objects.requireNonNull(newOwnerId, "newOwnerId"))));
+        markDirty();
     }
 
     public String slug(UUID terminalId) {
@@ -277,6 +342,69 @@ public final class GlobalDeviceRegistry extends PersistentState {
         return true;
     }
 
+    public boolean tombstoneCamera(UUID cameraId, Instant brokenAt) {
+        Objects.requireNonNull(brokenAt, "brokenAt");
+        CameraEntry removed = cameras.remove(cameraId);
+        if (removed == null) {
+            return false;
+        }
+        unindex(removed.ref());
+        cameraIdsByTerminal.get(removed.terminalId()).remove(cameraId);
+        cameraTombstones.put(cameraId, new CameraTombstone(
+                removed.ref(), removed.terminalId(), removed.name(), brokenAt));
+        markDirty();
+        return true;
+    }
+
+    public CameraEntry restoreCamera(UUID cameraId, CameraRef replacement) {
+        Objects.requireNonNull(replacement, "replacement");
+        CameraTombstone tombstone = cameraTombstones.get(cameraId);
+        if (tombstone == null) {
+            throw new IllegalArgumentException("Unknown camera tombstone: " + cameraId);
+        }
+        if (!replacement.deviceId().equals(cameraId)) {
+            throw new IllegalArgumentException("Replacement must retain the tombstoned camera UUID");
+        }
+        if (devicesById.containsKey(cameraId)) {
+            throw new IllegalArgumentException("Duplicate device UUID: " + cameraId);
+        }
+        DeviceLocation replacementLocation = DeviceLocation.of(replacement);
+        if (deviceIdsByLocation.containsKey(replacementLocation)) {
+            throw new IllegalArgumentException(
+                    "Device location is already registered: " + replacementLocation);
+        }
+        CameraEntry restored = new CameraEntry(
+                replacement, tombstone.terminalId(), tombstone.name());
+        cameraTombstones.remove(cameraId);
+        cameras.put(cameraId, restored);
+        index(replacement);
+        cameraIdsByTerminal.get(tombstone.terminalId()).add(cameraId);
+        markDirty();
+        return restored;
+    }
+
+    public int purgeExpiredTombstones(Instant now) {
+        Objects.requireNonNull(now, "now");
+        Instant cutoff = now.minus(Duration.ofDays(
+                CameraOverhaulContracts.TOMBSTONE_RETENTION_DAYS));
+        Set<UUID> expired = cameraTombstones.values().stream()
+                .filter(tombstone -> !tombstone.brokenAt().isAfter(cutoff))
+                .map(CameraTombstone::cameraId).collect(java.util.stream.Collectors.toSet());
+        if (expired.isEmpty()) {
+            return 0;
+        }
+        expired.forEach(cameraTombstones::remove);
+        for (Map.Entry<UUID, ScreenEntry> indexed : new ArrayList<>(screens.entrySet())) {
+            ScreenEntry screen = indexed.getValue();
+            if (screen.assignedCameraId().filter(expired::contains).isPresent()) {
+                screens.put(indexed.getKey(), new ScreenEntry(screen.ref(), screen.terminalId(),
+                        screen.name(), Optional.empty()));
+            }
+        }
+        markDirty();
+        return expired.size();
+    }
+
     public boolean removeScreen(UUID screenId) {
         ScreenEntry removed = screens.remove(screenId);
         if (removed == null) {
@@ -294,7 +422,9 @@ public final class GlobalDeviceRegistry extends PersistentState {
             return false;
         }
         if (!cameraIdsByTerminal.get(terminalId).isEmpty()
-                || !screenIdsByTerminal.get(terminalId).isEmpty()) {
+                || !screenIdsByTerminal.get(terminalId).isEmpty()
+                || cameraTombstones.values().stream()
+                .anyMatch(tombstone -> tombstone.terminalId().equals(terminalId))) {
             throw new IllegalStateException("Cannot remove a terminal with registered devices");
         }
         terminals.remove(terminalId);
@@ -316,6 +446,7 @@ public final class GlobalDeviceRegistry extends PersistentState {
             NbtCompound tag = new NbtCompound();
             tag.put("ref", entry.ref().toNbt());
             tag.putString("slug", slug(entry.ref().deviceId()));
+            entry.ownerId().ifPresent(ownerId -> tag.putUuid("ownerId", ownerId));
             terminalList.add(tag);
         }
         nbt.put("terminals", terminalList);
@@ -329,6 +460,17 @@ public final class GlobalDeviceRegistry extends PersistentState {
             cameraList.add(tag);
         }
         nbt.put("cameras", cameraList);
+
+        NbtList tombstoneList = new NbtList();
+        for (CameraTombstone tombstone : cameraTombstones.values()) {
+            NbtCompound tag = new NbtCompound();
+            tag.put("lastRef", tombstone.lastRef().toNbt());
+            tag.putUuid("terminalId", tombstone.terminalId());
+            tag.putString("name", tombstone.name());
+            tag.putLong("brokenAt", tombstone.brokenAt().toEpochMilli());
+            tombstoneList.add(tag);
+        }
+        nbt.put("cameraTombstones", tombstoneList);
 
         NbtList screenList = new NbtList();
         for (ScreenEntry entry : screens.values()) {
@@ -357,8 +499,10 @@ public final class GlobalDeviceRegistry extends PersistentState {
         NbtList terminalList = nbt.getList("terminals", NbtElement.COMPOUND_TYPE);
         for (int i = 0; i < terminalList.size(); i++) {
             NbtCompound tag = terminalList.getCompound(i);
+            Optional<UUID> ownerId = tag.containsUuid("ownerId")
+                    ? Optional.of(tag.getUuid("ownerId")) : Optional.empty();
             registry.registerTerminal(TerminalRef.fromNbt(tag.getCompound("ref")),
-                    tag.getString("slug"));
+                    tag.getString("slug"), ownerId);
         }
 
         NbtList cameraList = nbt.getList("cameras", NbtElement.COMPOUND_TYPE);
@@ -366,6 +510,22 @@ public final class GlobalDeviceRegistry extends PersistentState {
             NbtCompound tag = cameraList.getCompound(i);
             registry.registerCamera(CameraRef.fromNbt(tag.getCompound("ref")),
                     requiredUuid(tag, "terminalId"), tag.getString("name"));
+        }
+
+        NbtList tombstoneList = nbt.getList("cameraTombstones", NbtElement.COMPOUND_TYPE);
+        for (int i = 0; i < tombstoneList.size(); i++) {
+            NbtCompound tag = tombstoneList.getCompound(i);
+            CameraRef lastRef = CameraRef.fromNbt(tag.getCompound("lastRef"));
+            UUID terminalId = requiredUuid(tag, "terminalId");
+            registry.requireTerminal(terminalId);
+            if (registry.devicesById.containsKey(lastRef.deviceId())
+                    || registry.cameraTombstones.containsKey(lastRef.deviceId())) {
+                throw new IllegalArgumentException(
+                        "Duplicate tombstoned camera UUID: " + lastRef.deviceId());
+            }
+            registry.cameraTombstones.put(lastRef.deviceId(), new CameraTombstone(
+                    lastRef, terminalId, tag.getString("name"),
+                    Instant.ofEpochMilli(tag.getLong("brokenAt"))));
         }
 
         NbtList screenList = nbt.getList("screens", NbtElement.COMPOUND_TYPE);
@@ -381,7 +541,8 @@ public final class GlobalDeviceRegistry extends PersistentState {
     }
 
     private void requireAvailable(DeviceRef ref) {
-        if (devicesById.containsKey(ref.deviceId())) {
+        if (devicesById.containsKey(ref.deviceId())
+                || cameraTombstones.containsKey(ref.deviceId())) {
             throw new IllegalArgumentException("Duplicate device UUID: " + ref.deviceId());
         }
         DeviceLocation location = DeviceLocation.of(ref);
@@ -408,10 +569,12 @@ public final class GlobalDeviceRegistry extends PersistentState {
         Objects.requireNonNull(cameraId, "cameraId");
         cameraId.ifPresent(id -> {
             CameraEntry camera = cameras.get(id);
-            if (camera == null) {
+            CameraTombstone tombstone = cameraTombstones.get(id);
+            if (camera == null && tombstone == null) {
                 throw new IllegalArgumentException("Unknown camera UUID: " + id);
             }
-            if (!camera.terminalId().equals(terminalId)) {
+            UUID cameraTerminalId = camera != null ? camera.terminalId() : tombstone.terminalId();
+            if (!cameraTerminalId.equals(terminalId)) {
                 throw new IllegalArgumentException(
                         "Camera and screen must belong to the same terminal");
             }

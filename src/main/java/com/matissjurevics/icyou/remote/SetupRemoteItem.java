@@ -17,6 +17,7 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.ItemUsageContext;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.math.BlockPos;
@@ -48,11 +49,16 @@ public class SetupRemoteItem extends Item {
             if (!world.isClient) {
                 ServerWorld serverWorld = (ServerWorld) world;
                 GlobalDeviceRegistry registry = GlobalDeviceRegistry.get(serverWorld.getServer());
-                CameraRef ref = registry.deviceAt(new DeviceLocation(
-                                serverWorld.getRegistryKey(), pos))
+                DeviceLocation location = new DeviceLocation(serverWorld.getRegistryKey(), pos);
+                CameraRef carried = stack.get(ModDataComponentTypes.LINKED_CAMERA);
+                CameraRef ref = registry.deviceAt(location)
                         .filter(CameraRef.class::isInstance).map(CameraRef.class::cast)
-                        .orElseGet(() -> new CameraRef(UUID.randomUUID(),
-                                serverWorld.getRegistryKey(), pos));
+                        .orElseGet(() -> carried != null
+                                && registry.cameraTombstone(carried.deviceId()).isPresent()
+                                ? new CameraRef(carried.deviceId(),
+                                        serverWorld.getRegistryKey(), pos)
+                                : new CameraRef(UUID.randomUUID(),
+                                        serverWorld.getRegistryKey(), pos));
                 stack.set(ModDataComponentTypes.LINKED_CAMERA, ref);
                 stack.remove(ModDataComponentTypes.LEGACY_LINKED_CAMERA);
                 if (player != null) {
@@ -98,13 +104,26 @@ public class SetupRemoteItem extends Item {
                     if (!(world.getBlockEntity(pos) instanceof CameraTerminalBlockEntity terminal)) {
                         return ActionResult.FAIL;
                     }
-                    var terminalRef = terminal.initialize(serverWorld);
+                    var terminalRef = terminal.initialize(serverWorld, player.getUuid());
+                    if (!canManage(registry, terminalRef.deviceId(), player)) {
+                        player.sendMessage(Text.literal(
+                                "Only the terminal owner or an operator can link devices."), false);
+                        return ActionResult.FAIL;
+                    }
                     var existing = registry.camera(cam.deviceId());
                     if (existing.isPresent()) {
                         if (!existing.get().ref().equals(cam)) {
                             return ActionResult.FAIL;
                         }
                         registry.relinkCamera(cam.deviceId(), terminalRef.deviceId());
+                    } else if (registry.cameraTombstone(cam.deviceId()).isPresent()) {
+                        var tombstone = registry.cameraTombstone(cam.deviceId()).orElseThrow();
+                        if (!tombstone.terminalId().equals(terminalRef.deviceId())) {
+                            player.sendMessage(Text.literal(
+                                    "Restore this camera through its original terminal."), false);
+                            return ActionResult.FAIL;
+                        }
+                        registry.restoreCamera(cam.deviceId(), cam);
                     } else {
                         registry.registerCamera(cam, terminalRef.deviceId(), shortName("CAM", cam.deviceId()));
                     }
@@ -115,7 +134,12 @@ public class SetupRemoteItem extends Item {
                     if (!(world.getBlockEntity(pos) instanceof CameraTerminalBlockEntity terminal)) {
                         return ActionResult.FAIL;
                     }
-                    var terminalRef = terminal.initialize(serverWorld);
+                    var terminalRef = terminal.initialize(serverWorld, player.getUuid());
+                    if (!canManage(registry, terminalRef.deviceId(), player)) {
+                        player.sendMessage(Text.literal(
+                                "Only the terminal owner or an operator can link devices."), false);
+                        return ActionResult.FAIL;
+                    }
                     var existing = registry.screen(scr.deviceId());
                     if (existing.isPresent()) {
                         if (!existing.get().ref().equals(scr)) {
@@ -148,6 +172,13 @@ public class SetupRemoteItem extends Item {
 
     private static String shortName(String prefix, UUID id) {
         return prefix + "-" + id.toString().substring(0, 8).toUpperCase();
+    }
+
+    private static boolean canManage(GlobalDeviceRegistry registry, UUID terminalId,
+                                     net.minecraft.entity.player.PlayerEntity player) {
+        return registry.canManageTerminal(terminalId, player.getUuid(),
+                player instanceof ServerPlayerEntity serverPlayer
+                        && serverPlayer.hasPermissionLevel(2));
     }
 
     private static void upgradeLegacyLinks(ItemStack stack, ServerWorld world) {

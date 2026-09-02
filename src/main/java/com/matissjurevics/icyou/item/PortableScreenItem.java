@@ -14,6 +14,7 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.ItemUsageContext;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
@@ -44,7 +45,18 @@ public class PortableScreenItem extends Item {
                 if (!(world.getBlockEntity(pos) instanceof CameraTerminalBlockEntity terminal)) {
                     return ActionResult.FAIL;
                 }
-                TerminalRef terminalRef = terminal.initialize(serverWorld);
+                UUID playerId = player == null ? null : player.getUuid();
+                TerminalRef terminalRef = terminal.initialize(serverWorld, playerId);
+                boolean operator = player instanceof ServerPlayerEntity serverPlayer
+                        && serverPlayer.hasPermissionLevel(2);
+                if (player == null || !GlobalDeviceRegistry.get(serverWorld.getServer())
+                        .canManageTerminal(terminalRef.deviceId(), player.getUuid(), operator)) {
+                    if (player != null) {
+                        player.sendMessage(Text.literal(
+                                "Only the terminal owner or an operator can pair screens."), false);
+                    }
+                    return ActionResult.FAIL;
+                }
                 UUID wirelessId = UUID.randomUUID();
                 stack.set(ModDataComponentTypes.LINKED_TERMINAL, terminalRef);
                 stack.set(ModDataComponentTypes.WIRELESS_ID, wirelessId);

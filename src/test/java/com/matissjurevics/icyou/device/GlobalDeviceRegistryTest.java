@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.time.Instant;
 
 import org.junit.jupiter.api.Test;
 
@@ -82,6 +83,7 @@ class GlobalDeviceRegistryTest {
         original.markLegacyMigrationComplete();
 
         NbtCompound saved = original.writeNbt(new NbtCompound(), null);
+        saved.remove("cameraTombstones");
         GlobalDeviceRegistry restored = GlobalDeviceRegistry.readNbt(saved, null);
 
         assertEquals(original.deviceCount(), restored.deviceCount());
@@ -93,6 +95,7 @@ class GlobalDeviceRegistryTest {
         assertEquals(terminal, restored.terminalBySlug(restored.slug(terminal.deviceId()))
                 .orElseThrow().ref());
         assertFalse(restored.isDirty());
+        assertTrue(restored.terminal(terminal.deviceId()).orElseThrow().ownerId().isEmpty());
         assertTrue(restored.isLegacyMigrationComplete());
 
         saved.putInt("schemaVersion", CameraOverhaulContracts.SAVE_SCHEMA_VERSION + 1);
@@ -144,6 +147,112 @@ class GlobalDeviceRegistryTest {
         registry.relinkScreen(screen.deviceId(), second.deviceId());
         assertTrue(registry.screensFor(first.deviceId()).isEmpty());
         assertEquals(screen, registry.screensFor(second.deviceId()).getFirst().ref());
+    }
+
+    @Test
+    void tracksClaimsTransfersAndOperatorManagement() {
+        GlobalDeviceRegistry registry = new GlobalDeviceRegistry();
+        TerminalRef placed = terminal(50, OVERWORLD, new BlockPos(0, 64, 0));
+        TerminalRef migrated = terminal(51, OVERWORLD, new BlockPos(1, 64, 0));
+        UUID owner = uuid(500);
+        UUID nextOwner = uuid(501);
+        registry.registerTerminal(placed, owner);
+        registry.registerTerminal(migrated);
+
+        assertTrue(registry.canManageTerminal(placed.deviceId(), owner, false));
+        assertFalse(registry.canManageTerminal(placed.deviceId(), nextOwner, false));
+        assertTrue(registry.canManageTerminal(placed.deviceId(), nextOwner, true));
+        assertTrue(registry.claimTerminal(migrated.deviceId(), nextOwner));
+        assertFalse(registry.claimTerminal(migrated.deviceId(), owner));
+
+        registry.transferTerminal(placed.deviceId(), nextOwner);
+        assertFalse(registry.canManageTerminal(placed.deviceId(), owner, false));
+        assertTrue(registry.canManageTerminal(placed.deviceId(), nextOwner, false));
+    }
+
+    @Test
+    void tombstonesPreserveIdentityOwnershipAndAssignmentsUntilRestore() {
+        GlobalDeviceRegistry registry = new GlobalDeviceRegistry();
+        UUID owner = uuid(600);
+        TerminalRef terminal = terminal(60, OVERWORLD, new BlockPos(0, 70, 0));
+        CameraRef camera = camera(61, OVERWORLD, new BlockPos(1, 70, 0));
+        ScreenRef screen = screen(62, OVERWORLD, new BlockPos(2, 70, 0));
+        registry.registerTerminal(terminal, owner);
+        registry.registerCamera(camera, terminal.deviceId(), "North gate");
+        registry.registerScreen(screen, terminal.deviceId(), "Guard desk",
+                Optional.of(camera.deviceId()));
+        Instant brokenAt = Instant.parse("2026-09-01T12:00:00Z");
+
+        assertTrue(registry.tombstoneCamera(camera.deviceId(), brokenAt));
+        assertTrue(registry.camera(camera.deviceId()).isEmpty());
+        assertTrue(registry.deviceAt(DeviceLocation.of(camera)).isEmpty());
+        assertEquals(owner, registry.terminal(terminal.deviceId()).orElseThrow()
+                .ownerId().orElseThrow());
+        assertEquals(camera.deviceId(), registry.screen(screen.deviceId()).orElseThrow()
+                .assignedCameraId().orElseThrow());
+
+        CameraRef replacement = camera(61, NETHER, new BlockPos(9, 80, 9));
+        GlobalDeviceRegistry.CameraEntry restored = registry.restoreCamera(
+                camera.deviceId(), replacement);
+        assertEquals(replacement, restored.ref());
+        assertEquals("North gate", restored.name());
+        assertEquals(terminal.deviceId(), restored.terminalId());
+        assertTrue(registry.cameraTombstone(camera.deviceId()).isEmpty());
+        assertEquals(replacement, registry.deviceAt(DeviceLocation.of(replacement)).orElseThrow());
+        assertEquals(camera.deviceId(), registry.screen(screen.deviceId()).orElseThrow()
+                .assignedCameraId().orElseThrow());
+    }
+
+    @Test
+    void tombstoneRestoreIsAtomicAndExpiryClearsAssignments() {
+        GlobalDeviceRegistry registry = new GlobalDeviceRegistry();
+        TerminalRef terminal = terminal(70, OVERWORLD, new BlockPos(0, 75, 0));
+        CameraRef camera = camera(71, OVERWORLD, new BlockPos(1, 75, 0));
+        ScreenRef screen = screen(72, OVERWORLD, new BlockPos(2, 75, 0));
+        CameraRef occupied = camera(73, NETHER, new BlockPos(3, 75, 0));
+        registry.registerTerminal(terminal, uuid(700));
+        registry.registerCamera(camera, terminal.deviceId(), "Camera");
+        registry.registerCamera(occupied, terminal.deviceId(), "Occupied");
+        registry.registerScreen(screen, terminal.deviceId(), "Screen",
+                Optional.of(camera.deviceId()));
+        Instant brokenAt = Instant.parse("2026-08-01T00:00:00Z");
+        registry.tombstoneCamera(camera.deviceId(), brokenAt);
+
+        CameraRef invalidReplacement = camera(71, NETHER, occupied.position());
+        assertThrows(IllegalArgumentException.class,
+                () -> registry.restoreCamera(camera.deviceId(), invalidReplacement));
+        assertTrue(registry.cameraTombstone(camera.deviceId()).isPresent());
+        assertEquals(0, registry.purgeExpiredTombstones(
+                brokenAt.plusSeconds(30L * 24 * 60 * 60 - 1)));
+        assertEquals(1, registry.purgeExpiredTombstones(
+                brokenAt.plusSeconds(30L * 24 * 60 * 60)));
+        assertTrue(registry.cameraTombstone(camera.deviceId()).isEmpty());
+        assertTrue(registry.screen(screen.deviceId()).orElseThrow().assignedCameraId().isEmpty());
+    }
+
+    @Test
+    void persistenceKeepsOwnersAndTombstones() {
+        GlobalDeviceRegistry registry = new GlobalDeviceRegistry();
+        UUID owner = uuid(800);
+        TerminalRef terminal = terminal(80, OVERWORLD, new BlockPos(0, 90, 0));
+        CameraRef camera = camera(81, NETHER, new BlockPos(1, 90, 0));
+        registry.registerTerminal(terminal, owner);
+        registry.registerCamera(camera, terminal.deviceId(), "Archive");
+        Instant brokenAt = Instant.parse("2026-09-02T10:15:30Z");
+        registry.tombstoneCamera(camera.deviceId(), brokenAt);
+
+        GlobalDeviceRegistry restored = GlobalDeviceRegistry.readNbt(
+                registry.writeNbt(new NbtCompound(), null), null);
+
+        assertEquals(owner, restored.terminal(terminal.deviceId()).orElseThrow()
+                .ownerId().orElseThrow());
+        GlobalDeviceRegistry.CameraTombstone tombstone = restored.cameraTombstone(
+                camera.deviceId()).orElseThrow();
+        assertEquals(camera, tombstone.lastRef());
+        assertEquals(terminal.deviceId(), tombstone.terminalId());
+        assertEquals("Archive", tombstone.name());
+        assertEquals(brokenAt, tombstone.brokenAt());
+        assertFalse(restored.isDirty());
     }
 
     private static RegistryKey<World> world(String path) {
