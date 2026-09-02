@@ -16,6 +16,7 @@ import com.matissjurevics.icyou.device.TerminalRef;
 import com.matissjurevics.icyou.web.WebRequest;
 import com.matissjurevics.icyou.web.WebResponse;
 import com.matissjurevics.icyou.web.auth.TerminalCredentialStore.Scope;
+import com.matissjurevics.icyou.web.demand.WebViewerDemandRegistry;
 
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
@@ -75,5 +76,37 @@ class TerminalWebControllerTest {
         assertEquals(404, controller.handle(request).status());
         assertEquals(200, controller.handle(new WebRequest("GET", "/health")).status());
         assertFalse(controller.handle(new WebRequest("POST", "/health")).status() == 200);
+    }
+
+    @Test
+    void authenticatedDemandCanBeOpenedRenewedAndClosed() {
+        GlobalDeviceRegistry registry = new GlobalDeviceRegistry();
+        TerminalRef terminal = new TerminalRef(UUID.randomUUID(), WORLD, BlockPos.ORIGIN);
+        CameraRef camera = new CameraRef(UUID.randomUUID(), WORLD, new BlockPos(1, 64, 0));
+        registry.registerTerminal(terminal, UUID.randomUUID());
+        registry.registerCamera(camera, terminal.deviceId(), "Demand camera");
+        String slug = registry.slug(terminal.deviceId());
+        TerminalCredentialStore credentials = new TerminalCredentialStore();
+        var issued = credentials.issue(terminal.deviceId(), Scope.VIEWER);
+        WebViewerDemandRegistry demand = new WebViewerDemandRegistry();
+        TerminalWebController controller = new TerminalWebController(
+                registry, credentials, demand);
+        String base = "/v1/terminals/" + slug + "/cameras/"
+                + camera.deviceId() + "/demand";
+        Map<String, String> auth = Map.of("authorization", "Bearer " + issued.token());
+
+        WebResponse opened = controller.handle(new WebRequest("POST", base, auth));
+        String json = new String(opened.body(), StandardCharsets.UTF_8);
+        UUID sessionId = UUID.fromString(json.substring(
+                json.indexOf(':') + 2, json.length() - 2));
+        assertEquals(200, opened.status());
+        assertTrue(demand.hasDemand(camera.deviceId(), java.time.Instant.now()));
+        assertEquals(200, controller.handle(new WebRequest(
+                "PUT", base + '/' + sessionId, auth)).status());
+        assertEquals(200, controller.handle(new WebRequest(
+                "DELETE", base + '/' + sessionId, auth)).status());
+        assertFalse(demand.hasDemand(camera.deviceId(), java.time.Instant.now()));
+        assertEquals(404, controller.handle(new WebRequest("POST", base,
+                Map.of("authorization", "Bearer invalid"))).status());
     }
 }

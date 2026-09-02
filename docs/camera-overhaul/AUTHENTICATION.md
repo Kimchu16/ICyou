@@ -32,6 +32,29 @@ Authorization: Bearer <token>
 The terminal page is `GET /v1/terminals/<terminal-slug>`. Missing, invalid,
 revoked, and wrong-terminal tokens all return the same not-found response.
 
+## Viewer demand
+
+A viewer opens demand for a camera with:
+
+```text
+POST /v1/terminals/<terminal-slug>/cameras/<camera-uuid>/demand
+```
+
+The response contains a `sessionId`. Renew it at least once every 30 seconds:
+
+```text
+PUT /v1/terminals/<terminal-slug>/cameras/<camera-uuid>/demand/<session-id>
+```
+
+Close it when viewing ends:
+
+```text
+DELETE /v1/terminals/<terminal-slug>/cameras/<camera-uuid>/demand/<session-id>
+```
+
+All three requests use the same bearer token. If renewal stops, demand expires
+after 30 seconds. Revoking the token removes its demand immediately.
+
 ## Revoke access
 
 Each issued token also shows a credential ID:

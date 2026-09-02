@@ -60,7 +60,11 @@ it in the commit that changes a roadmap item's status or contract.
   bounded headers, and authenticated metadata.
 - PR 8 child PR #16 CI passed and was squash-merged as `9996ce7`; its local and
   remote child branches were deleted.
-- Current work: stopped after PR 8. Next dependency: PR 9 web demand.
+- PR 9 verification: `gradlew clean test build` passed locally with 42 tests;
+  demand tests cover authenticated sessions, deduplication, renewal, closure,
+  expiry, revocation, and shared lifecycle state.
+- Current work: PR 9 authenticated web demand is active on
+  `feature/cam-09-web-demand`.
 
 ## Roadmap and dependency status
 
@@ -77,7 +81,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 6 | Server web lifecycle | DONE | 2 |
 | 7 | Web gateway seam | DONE | 6 |
 | 8 | Terminal authentication | DONE | 5, 7 |
-| 9 | Web demand | READY | 8 |
+| 9 | Web demand | ACTIVE | 8 |
 | 10 | Unified demand manager | BLOCKED | 9, 3 |
 | 11 | Chunk leases | BLOCKED | 10 |
 | 12 | Supplemental random ticks | BLOCKED | 11 |
@@ -243,6 +247,24 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   escaping.
 - [x] `gradlew clean test build` passes after the full PR 8 change (37 tests).
 - [x] Child PR CI passes and the PR is squash-merged into the integration branch.
+
+## PR 9 acceptance criteria
+
+- [x] Only a valid viewer or owner credential for the terminal can open demand
+  for one of that terminal's registered cameras.
+- [x] Opening demand returns an opaque session UUID and deduplicates repeated
+  opens by the same credential and camera.
+- [x] Renewal and explicit close require the exact credential, terminal, camera,
+  and session tuple.
+- [x] Missing clients expire after 30 seconds; renewal extends that deadline.
+- [x] Revoking one credential or a whole terminal scope removes its active demand
+  immediately.
+- [x] Demand is transient, cleared when the server web lifecycle stops, and
+  exposed as one shared server source for PR 10.
+- [x] Focused tests cover authentication, camera ownership, deduplication, viewer
+  counts, renewal, close, timeout, wrong-session denial, and revocation.
+- [x] `gradlew clean test build` passes after the full PR 9 change (42 tests).
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 

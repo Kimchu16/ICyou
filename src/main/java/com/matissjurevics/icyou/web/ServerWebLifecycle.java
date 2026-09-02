@@ -3,9 +3,13 @@ package com.matissjurevics.icyou.web;
 import java.nio.file.Path;
 import java.util.IdentityHashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import com.matissjurevics.icyou.ICyouMod;
 import com.matissjurevics.icyou.web.auth.TerminalWebController;
+import com.matissjurevics.icyou.web.auth.TerminalCredentialStore;
+import com.matissjurevics.icyou.device.GlobalDeviceRegistry;
+import com.matissjurevics.icyou.web.demand.WebViewerDemandRegistry;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.loader.api.FabricLoader;
@@ -14,7 +18,7 @@ import net.minecraft.server.MinecraftServer;
 /** Binds web listener lifetime to one logical Minecraft server. */
 public final class ServerWebLifecycle {
 
-    private static final Map<MinecraftServer, WebGateway> GATEWAYS =
+    private static final Map<MinecraftServer, ActiveWeb> ACTIVE =
             new IdentityHashMap<>();
 
     private ServerWebLifecycle() {
@@ -26,7 +30,7 @@ public final class ServerWebLifecycle {
     }
 
     static synchronized void start(MinecraftServer server) {
-        if (GATEWAYS.containsKey(server)) {
+        if (ACTIVE.containsKey(server)) {
             return;
         }
         Path configFile = FabricLoader.getInstance().getConfigDir()
@@ -44,8 +48,11 @@ public final class ServerWebLifecycle {
         }
         WebGateway gateway = new EmbeddedWebGateway(error ->
                 ICyouMod.LOGGER.error("ICyou server web listener failed", error));
-        if (gateway.start(config, new TerminalWebController(server)::handle)) {
-            GATEWAYS.put(server, gateway);
+        WebViewerDemandRegistry demand = new WebViewerDemandRegistry();
+        TerminalWebController controller = new TerminalWebController(
+                GlobalDeviceRegistry.get(server), TerminalCredentialStore.get(server), demand);
+        if (gateway.start(config, controller::handle)) {
+            ACTIVE.put(server, new ActiveWeb(gateway, demand));
             var address = gateway.boundAddress().orElseThrow();
             ICyouMod.LOGGER.info("ICyou server web listener started on {}:{}",
                     address.getHostString(), address.getPort());
@@ -53,15 +60,25 @@ public final class ServerWebLifecycle {
     }
 
     static synchronized void stop(MinecraftServer server) {
-        WebGateway gateway = GATEWAYS.remove(server);
-        if (gateway != null) {
-            gateway.close();
+        ActiveWeb active = ACTIVE.remove(server);
+        if (active != null) {
+            active.gateway().close();
+            active.demand().clear();
             ICyouMod.LOGGER.info("ICyou server web listener stopped");
         }
     }
 
     static synchronized int activeServerCount() {
-        return GATEWAYS.size();
+        return ACTIVE.size();
+    }
+
+    public static synchronized Optional<WebViewerDemandRegistry> demand(
+            MinecraftServer server) {
+        ActiveWeb active = ACTIVE.get(server);
+        return active == null ? Optional.empty() : Optional.of(active.demand());
+    }
+
+    private record ActiveWeb(WebGateway gateway, WebViewerDemandRegistry demand) {
     }
 
 }

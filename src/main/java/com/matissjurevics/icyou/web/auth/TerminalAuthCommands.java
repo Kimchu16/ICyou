@@ -11,6 +11,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.matissjurevics.icyou.device.GlobalDeviceRegistry;
 import com.matissjurevics.icyou.web.auth.TerminalCredentialStore.Scope;
+import com.matissjurevics.icyou.web.ServerWebLifecycle;
 
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.server.command.ServerCommandSource;
@@ -81,6 +82,10 @@ public final class TerminalAuthCommands {
         }
         boolean removed = TerminalCredentialStore.get(source.getServer())
                 .revoke(target.terminalId(), credentialId);
+        if (removed) {
+            ServerWebLifecycle.demand(source.getServer())
+                    .ifPresent(demand -> demand.revokeCredential(credentialId));
+        }
         source.sendFeedback(() -> Text.literal(removed
                 ? "Credential revoked." : "Credential was not found."), false);
         return removed ? Command.SINGLE_SUCCESS : 0;
@@ -96,6 +101,8 @@ public final class TerminalAuthCommands {
         }
         int removed = TerminalCredentialStore.get(source.getServer())
                 .revokeAll(target.terminalId(), scope);
+        ServerWebLifecycle.demand(source.getServer())
+                .ifPresent(demand -> demand.revokeAll(target.terminalId(), scope));
         source.sendFeedback(() -> Text.literal("Revoked " + removed + " "
                 + scope.name().toLowerCase(Locale.ROOT) + " credential(s)."), false);
         return Command.SINGLE_SUCCESS;
