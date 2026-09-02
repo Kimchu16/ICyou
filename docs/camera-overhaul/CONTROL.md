@@ -36,7 +36,6 @@ it in the commit that changes a roadmap item's status or contract.
   the legacy-registry runtime-consumer audit returned no matches.
 - PR 3 child PR #11 CI passed and was squash-merged as `d33ae28`; its local and
   remote child branches were deleted.
-- Current work: PR 4 migration is active on `feature/cam-04-migration`.
 - PR 4 verification: `gradlew clean test build` passed locally with 18 tests
   after adding backup-first conversion, an ambiguity report, migration state,
   and lazy upgrades for legacy item links.
@@ -65,7 +64,11 @@ it in the commit that changes a roadmap item's status or contract.
   expiry, revocation, and shared lifecycle state.
 - PR 9 child PR #17 CI passed and was squash-merged as `c716551`; its local and
   remote child branches were deleted.
-- Current work: stopped after PR 9. Next dependency: PR 10 unified demand manager.
+- PR 10 verification: `gradlew clean test build` passed locally with 52 tests;
+  focused tests cover source union, screen eligibility, environment gates, and
+  feed retention.
+- Current work: PR 10 unified demand is active on
+  `feature/cam-10-unified-demand`.
 
 ## Roadmap and dependency status
 
@@ -83,7 +86,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 7 | Web gateway seam | DONE | 6 |
 | 8 | Terminal authentication | DONE | 5, 7 |
 | 9 | Web demand | DONE | 8 |
-| 10 | Unified demand manager | READY | 9, 3 |
+| 10 | Unified demand manager | ACTIVE | 9, 3 |
 | 11 | Chunk leases | BLOCKED | 10 |
 | 12 | Supplemental random ticks | BLOCKED | 11 |
 | 13 | Render protocol | BLOCKED | 1, 10 |
@@ -266,6 +269,25 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   counts, renewal, close, timeout, wrong-session denial, and revocation.
 - [x] `gradlew clean test build` passes after the full PR 9 change (42 tests).
 - [x] Child PR CI passes and the PR is squash-merged into the integration branch.
+
+## PR 10 acceptance criteria
+
+- [x] One transient manager per logical server combines authenticated web-viewer
+  counts and eligible in-world screen counts by stable camera UUID.
+- [x] A screen creates demand only while its chunk is already loaded and a
+  genuine same-dimension player is within 64 blocks; no line-of-sight check or
+  chunk load is introduced.
+- [x] Integrated, LAN, and dedicated activation rules are represented explicitly;
+  paused singleplayer and empty LAN sessions cannot activate feeds, while an
+  authorized render agent can support an otherwise empty dedicated server.
+- [x] Demand enters `ACTIVATING`; production success/failure can move it to
+  `AVAILABLE` or `UNAVAILABLE` without coupling this PR to rendering.
+- [x] Final demand enters `RETAINING` for 30 seconds, renewed demand reactivates,
+  and expiry returns the feed to `INACTIVE`.
+- [x] Focused tests cover source union, counts, range and dimension boundaries,
+  unloaded chunks, render-agent exclusion, environment gates, and retention.
+- [x] `gradlew clean test build` passes after the full PR 10 change (52 tests).
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
