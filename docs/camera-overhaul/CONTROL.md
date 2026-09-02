@@ -53,8 +53,9 @@ it in the commit that changes a roadmap item's status or contract.
   remote child branches were deleted.
 - PR 7 verification: `gradlew clean test build` passed locally with 30 tests;
   gateway tests cover neutral routing, defensive bytes, and safe headers.
-- Current work: PR 7 web gateway seam is active on
-  `feature/cam-07-web-gateway-seam`.
+- PR 7 child PR #15 CI passed and was squash-merged as `d67f9a0`; its local and
+  remote child branches were deleted.
+- Current work: stopped after PR 7. Next dependency: PR 8 terminal authentication.
 
 ## Roadmap and dependency status
 
@@ -69,8 +70,8 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 4 | Migration, backup, ambiguity report | DONE | 3 |
 | 5 | Ownership and tombstones | DONE | 4 |
 | 6 | Server web lifecycle | DONE | 2 |
-| 7 | Web gateway seam | ACTIVE | 6 |
-| 8 | Terminal authentication | BLOCKED | 5, 7 |
+| 7 | Web gateway seam | DONE | 6 |
+| 8 | Terminal authentication | READY | 5, 7 |
 | 9 | Web demand | BLOCKED | 8 |
 | 10 | Unified demand manager | BLOCKED | 9, 3 |
 | 11 | Chunk leases | BLOCKED | 10 |
@@ -213,7 +214,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 - [x] Focused tests cover the interface through the embedded adapter, request and
   response translation, routing, defensive copies, and unsafe headers.
 - [x] `gradlew clean test build` passes after the full PR 7 change (30 tests).
-- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
+- [x] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
