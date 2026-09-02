@@ -13,7 +13,7 @@ import net.minecraft.server.MinecraftServer;
 /** Binds web listener lifetime to one logical Minecraft server. */
 public final class ServerWebLifecycle {
 
-    private static final Map<MinecraftServer, ServerWebRuntime> RUNTIMES =
+    private static final Map<MinecraftServer, WebGateway> GATEWAYS =
             new IdentityHashMap<>();
 
     private ServerWebLifecycle() {
@@ -25,7 +25,7 @@ public final class ServerWebLifecycle {
     }
 
     static synchronized void start(MinecraftServer server) {
-        if (RUNTIMES.containsKey(server)) {
+        if (GATEWAYS.containsKey(server)) {
             return;
         }
         Path configFile = FabricLoader.getInstance().getConfigDir()
@@ -41,25 +41,32 @@ public final class ServerWebLifecycle {
             ICyouMod.LOGGER.info("ICyou server web listener is disabled");
             return;
         }
-        ServerWebRuntime runtime = new ServerWebRuntime(error ->
+        WebGateway gateway = new EmbeddedWebGateway(error ->
                 ICyouMod.LOGGER.error("ICyou server web listener failed", error));
-        if (runtime.start(config)) {
-            RUNTIMES.put(server, runtime);
-            var address = runtime.boundAddress().orElseThrow();
+        if (gateway.start(config, ServerWebLifecycle::handle)) {
+            GATEWAYS.put(server, gateway);
+            var address = gateway.boundAddress().orElseThrow();
             ICyouMod.LOGGER.info("ICyou server web listener started on {}:{}",
                     address.getHostString(), address.getPort());
         }
     }
 
     static synchronized void stop(MinecraftServer server) {
-        ServerWebRuntime runtime = RUNTIMES.remove(server);
-        if (runtime != null) {
-            runtime.close();
+        WebGateway gateway = GATEWAYS.remove(server);
+        if (gateway != null) {
+            gateway.close();
             ICyouMod.LOGGER.info("ICyou server web listener stopped");
         }
     }
 
     static synchronized int activeServerCount() {
-        return RUNTIMES.size();
+        return GATEWAYS.size();
+    }
+
+    private static WebResponse handle(WebRequest request) {
+        if (request.method().equals("GET") && request.path().equals("/health")) {
+            return WebResponse.json(200, "{\"status\":\"ok\"}");
+        }
+        return WebResponse.notFound();
     }
 }

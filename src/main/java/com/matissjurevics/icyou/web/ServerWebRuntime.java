@@ -7,6 +7,7 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,28 +21,19 @@ public final class ServerWebRuntime implements AutoCloseable {
 
     public enum State { STOPPED, STARTING, RUNNING, STOPPING, FAILED }
 
-    private static final byte[] HEALTH_RESPONSE = ("HTTP/1.1 200 OK\r\n"
-            + "Content-Type: application/json; charset=utf-8\r\n"
-            + "Cache-Control: no-store\r\n"
-            + "Content-Length: 15\r\n"
-            + "Connection: close\r\n\r\n"
-            + "{\"status\":\"ok\"}").getBytes(StandardCharsets.UTF_8);
-    private static final byte[] NOT_FOUND_RESPONSE = ("HTTP/1.1 404 Not Found\r\n"
-            + "Content-Length: 0\r\nConnection: close\r\n\r\n")
-            .getBytes(StandardCharsets.UTF_8);
-
     private final Consumer<Throwable> failureHandler;
     private final Set<Socket> openClients = ConcurrentHashMap.newKeySet();
     private volatile State state = State.STOPPED;
     private ServerSocket socket;
     private ExecutorService clients;
     private Thread acceptThread;
+    private WebRequestHandler requestHandler;
 
     public ServerWebRuntime(Consumer<Throwable> failureHandler) {
         this.failureHandler = failureHandler == null ? ignored -> { } : failureHandler;
     }
 
-    public synchronized boolean start(WebServerConfig config) {
+    public synchronized boolean start(WebServerConfig config, WebRequestHandler handler) {
         if (state == State.RUNNING) {
             return true;
         }
@@ -49,6 +41,7 @@ public final class ServerWebRuntime implements AutoCloseable {
             return false;
         }
         state = State.STARTING;
+        requestHandler = Objects.requireNonNull(handler, "handler");
         if (!config.enabled()) {
             state = State.STOPPED;
             return false;
@@ -112,15 +105,59 @@ public final class ServerWebRuntime implements AutoCloseable {
              OutputStream output = client.getOutputStream()) {
             client.setSoTimeout(5_000);
             String request = readRequestLine(client.getInputStream());
-            boolean health = request != null
-                    && request.startsWith("GET /health ");
-            output.write(health ? HEALTH_RESPONSE : NOT_FOUND_RESPONSE);
+            WebResponse response = route(request);
+            writeResponse(output, response);
             output.flush();
         } catch (IOException ignored) {
             // A disconnected health-check client needs no server action.
         } finally {
             openClients.remove(socket);
         }
+    }
+
+    private WebResponse route(String requestLine) {
+        if (requestLine == null) {
+            return WebResponse.notFound();
+        }
+        String[] parts = requestLine.split(" ", 3);
+        if (parts.length != 3 || !parts[2].startsWith("HTTP/")) {
+            return WebResponse.notFound();
+        }
+        try {
+            WebResponse response = requestHandler.handle(new WebRequest(parts[0], parts[1]));
+            return response == null ? WebResponse.notFound() : response;
+        } catch (RuntimeException error) {
+            failureHandler.accept(error);
+            return WebResponse.json(500, "{\"error\":\"internal_error\"}");
+        }
+    }
+
+    private static void writeResponse(OutputStream output, WebResponse response)
+            throws IOException {
+        byte[] body = response.body();
+        StringBuilder headers = new StringBuilder("HTTP/1.1 ")
+                .append(response.status()).append(' ').append(reason(response.status()))
+                .append("\r\nContent-Type: ").append(response.contentType())
+                .append("\r\nContent-Length: ").append(body.length)
+                .append("\r\nConnection: close\r\n");
+        response.headers().forEach((name, value) -> headers.append(name).append(": ")
+                .append(value).append("\r\n"));
+        headers.append("\r\n");
+        output.write(headers.toString().getBytes(StandardCharsets.US_ASCII));
+        output.write(body);
+    }
+
+    private static String reason(int status) {
+        return switch (status) {
+            case 200 -> "OK";
+            case 400 -> "Bad Request";
+            case 401 -> "Unauthorized";
+            case 403 -> "Forbidden";
+            case 404 -> "Not Found";
+            case 405 -> "Method Not Allowed";
+            case 500 -> "Internal Server Error";
+            default -> "Response";
+        };
     }
 
     private static String readRequestLine(InputStream input) throws IOException {
@@ -172,5 +209,6 @@ public final class ServerWebRuntime implements AutoCloseable {
             clients = null;
         }
         acceptThread = null;
+        requestHandler = null;
     }
 }
