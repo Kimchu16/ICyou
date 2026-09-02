@@ -45,8 +45,9 @@ it in the commit that changes a roadmap item's status or contract.
 - PR 5 verification: `gradlew clean test build` passed locally with 22 tests;
   focused registry tests cover ownership, authorization decisions, atomic
   restoration, 30-day expiry, and persistence.
-- Current work: PR 5 ownership and tombstones is active on
-  `feature/cam-05-ownership-tombstones`.
+- PR 5 child PR #13 CI passed and was squash-merged as `7cbe091`; its local and
+  remote child branches were deleted.
+- Current work: stopped after PR 5. Next dependency: PR 6 server web lifecycle.
 
 ## Roadmap and dependency status
 
@@ -59,8 +60,8 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 2 | Server-global registry | DONE | 1 |
 | 3 | Device integration | DONE | 2 |
 | 4 | Migration, backup, ambiguity report | DONE | 3 |
-| 5 | Ownership and tombstones | ACTIVE | 4 |
-| 6 | Server web lifecycle | BLOCKED | 2 |
+| 5 | Ownership and tombstones | DONE | 4 |
+| 6 | Server web lifecycle | READY | 2 |
 | 7 | Web gateway seam | BLOCKED | 6 |
 | 8 | Terminal authentication | BLOCKED | 5, 7 |
 | 9 | Web demand | BLOCKED | 8 |
@@ -168,7 +169,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 - [x] Focused ownership, authorization, restoration, expiry, and persistence
   tests pass.
 - [x] `gradlew clean test build` passes after the full PR 5 change (22 tests).
-- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
+- [x] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
