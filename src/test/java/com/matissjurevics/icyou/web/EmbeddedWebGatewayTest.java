@@ -12,6 +12,7 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 
@@ -38,7 +39,9 @@ class EmbeddedWebGatewayTest {
             assertEquals("HTTP/1.1 200 OK", reader.readLine());
         }
 
-        assertEquals(new WebRequest("GET", "/custom"), received.get());
+        assertEquals("GET", received.get().method());
+        assertEquals("/custom", received.get().path());
+        assertEquals("localhost", received.get().header("Host").orElseThrow());
         gateway.close();
         assertFalse(gateway.isRunning());
     }
@@ -59,5 +62,35 @@ class EmbeddedWebGatewayTest {
                 200, "text/plain", new byte[0], Map.of("Safe", "yes\r\nInjected: yes")));
         assertThrows(IllegalArgumentException.class, () -> new WebResponse(
                 200, "text/plain", new byte[0], Map.of("Content-Length", "999")));
+    }
+
+    @Test
+    void rejectsDuplicateAndOversizedRequestHeadersBeforeRouting() throws Exception {
+        AtomicInteger handled = new AtomicInteger();
+        WebGateway gateway = new EmbeddedWebGateway(null);
+        assertTrue(gateway.start(new WebServerConfig(true, "127.0.0.1", 0), request -> {
+            handled.incrementAndGet();
+            return WebResponse.json(200, "{}");
+        }));
+        int port = gateway.boundAddress().orElseThrow().getPort();
+
+        assertEquals("HTTP/1.1 400 Bad Request", requestStatus(port,
+                "GET / HTTP/1.1\r\nAuthorization: one\r\nAuthorization: two\r\n\r\n"));
+        assertEquals("HTTP/1.1 400 Bad Request", requestStatus(port,
+                "GET / HTTP/1.1\r\nX-Large: " + "a".repeat(2_100) + "\r\n\r\n"));
+        assertEquals(0, handled.get());
+        gateway.close();
+    }
+
+    private static String requestStatus(int port, String request) throws Exception {
+        try (Socket client = new Socket("127.0.0.1", port);
+             OutputStreamWriter writer = new OutputStreamWriter(
+                     client.getOutputStream(), StandardCharsets.US_ASCII);
+             BufferedReader reader = new BufferedReader(new InputStreamReader(
+                     client.getInputStream(), StandardCharsets.UTF_8))) {
+            writer.write(request);
+            writer.flush();
+            return reader.readLine();
+        }
     }
 }
