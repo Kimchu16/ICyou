@@ -1,7 +1,5 @@
 package com.matissjurevics.icyou.client.render;
 
-import com.matissjurevics.icyou.feed.FeedBlip;
-import com.matissjurevics.icyou.client.render.RttFeedManager;
 import com.matissjurevics.icyou.feed.StylizedFeed;
 import com.matissjurevics.icyou.screen.ScreenBlock;
 import com.matissjurevics.icyou.screen.ScreenBlockEntity;
@@ -26,10 +24,7 @@ import org.joml.Matrix4f;
 
 /**
  * Renders the stylized CCTV feed directly onto a screen block's display:
- * animated static, camera status text, and a blinking LIVE indicator.
- *
- * <p>Phase 3 replaces this with entity blips (networked) and eventually a
- * render-to-texture true footage feed; the drawing surface stays the same.</p>
+ * a bouncing idle logo or live camera footage with status overlays.
  */
 public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity> {
 
@@ -38,10 +33,17 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
 
     // The model's glass face is at local z=12.65/16 (0.290625 from centre).
     // Give the dynamic surface a visible depth gap; a near-coplanar quad loses
-    // the depth test to the baked blue face, especially at oblique angles.
+    // the depth test to the baked display face, especially at oblique angles.
     private static final float FACE_OFFSET = 0.27f;
-    private static final int GRID_PER_BLOCK = 10;
-
+    private static final float IDLE_FACE_OFFSET = 0.24f;
+    private static final float LOGO_FACE_OFFSET = 0.235f;
+    private static final String[] IDLE_LOGO = {
+            "1110111010101110101",
+            "0100100010101010101",
+            "0100100001001010101",
+            "0100100001001010101",
+            "1110111001001110111"
+    };
     private final TextRenderer textRenderer;
 
     public ScreenFeedRenderer(BlockEntityRendererFactory.Context context) {
@@ -55,8 +57,6 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
         if (RttFeedManager.isRenderingFeed()) {
             return;
         }
-        boolean hasSignal = blockEntity.isReceiving();
-
         BlockState state = blockEntity.getCachedState();
         Direction facing = Direction.NORTH;
         if (state.contains(FACING_PROP)) {
@@ -106,13 +106,7 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
                         .texture(1, 0).overlay(OverlayTexture.DEFAULT_UV).light(FULL_BRIGHT)
                         .normal(0, 0, -1);
             }
-        } else {
-            drawStatic(matrices, vertexConsumers, halfWidth, halfHeight, width, height);
-            drawBlips(matrices, vertexConsumers, blockEntity, halfWidth, halfHeight);
-        }
-
-        float textScale = 0.0105f * Math.min(width, height);
-        if (hasSignal) {
+            float textScale = 0.0105f * Math.min(width, height);
             String camDir = Direction.byId(blockEntity.getLastFacingId()).asString();
             String channel = blockEntity.getLastCount() > 1
                     ? blockEntity.getLastIndex() + "/" + blockEntity.getLastCount()
@@ -120,65 +114,80 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
             drawText(matrices, vertexConsumers, FULL_BRIGHT,
                     Text.literal("CAM " + channel + " [" + camDir + "]").formatted(Formatting.GREEN),
                     halfWidth * 0.55f, halfHeight * 0.12f, textScale, 0xFF60FF60);
-        } else {
-            drawText(matrices, vertexConsumers, FULL_BRIGHT,
-                    Text.literal("NO SIGNAL"), -0.09f * width, halfHeight * 0.12f,
-                    textScale, 0xFFFF5050);
-        }
 
-        // Blinking LIVE marker.
-        long frame = StylizedFeed.INSTANCE.frame();
-        if (frame % 20 < 14) {
-            drawText(matrices, vertexConsumers, FULL_BRIGHT,
-                    Text.literal("LIVE"), -0.015f * width, -halfHeight * 0.23f,
-                    textScale,
-                    frame % 40 < 20 ? 0xFFFF3030 : 0xFF902020);
+            // Blinking LIVE marker is only shown over actual camera footage.
+            long frame = StylizedFeed.INSTANCE.frame();
+            if (frame % 20 < 14) {
+                drawText(matrices, vertexConsumers, FULL_BRIGHT,
+                        Text.literal("LIVE"), -0.015f * width, -halfHeight * 0.23f,
+                        textScale,
+                        frame % 40 < 20 ? 0xFFFF3030 : 0xFF902020);
+            }
+        } else {
+            drawIdleScreensaver(matrices, vertexConsumers, halfWidth, halfHeight,
+                    width, height);
         }
 
         matrices.pop();
     }
 
-    /** Fills the panel with per-cell pseudo-random static, tinted like night vision. */
-    private void drawStatic(MatrixStack matrices, VertexConsumerProvider vertexConsumers,
-                            float halfWidth, float halfHeight, int width, int height) {
-        long seedBase = StylizedFeed.INSTANCE.frame();
-        int gridWidth = GRID_PER_BLOCK * width;
-        int gridHeight = GRID_PER_BLOCK * height;
-        float cellWidth = (halfWidth * 2f) / gridWidth;
-        float cellHeight = (halfHeight * 2f) / gridHeight;
+    /** Draws a DVD-style ICyou logo screensaver over a solid black panel. */
+    private void drawIdleScreensaver(MatrixStack matrices,
+                                     VertexConsumerProvider vertexConsumers,
+                                     float halfWidth, float halfHeight,
+                                     int width, int height) {
+        quad(matrices, vertexConsumers,
+                -halfWidth, -halfHeight, halfWidth, halfHeight,
+                IDLE_FACE_OFFSET, 0, 0, 0);
 
-        for (int gy = 0; gy < gridHeight; gy++) {
-            for (int gx = 0; gx < gridWidth; gx++) {
-                int h = hash(gx, gy, (int) (seedBase & 0xFFFF));
-                int v = 30 + (h & 0x2F);                       // mostly dark greys
-                int r = v, g = v + ((h >>> 6) & 0x18), b = v + ((h >>> 8) & 0x20);
-                if ((h & 0x3F) == 0) {                         // occasional bright cell
-                    r = 140; g = 220; b = 255;
+        float logoWidth = 0.68f * Math.min(width, height);
+        float pixel = logoWidth / IDLE_LOGO[0].length();
+        float logoHeight = pixel * IDLE_LOGO.length;
+        float logoHalfWidth = logoWidth / 2f;
+        float logoHalfHeight = logoHeight / 2f;
+        float margin = 0.04f * Math.min(width, height);
+        long frame = StylizedFeed.INSTANCE.frame();
+
+        float x = bounce(frame * 0.0065f,
+                -halfWidth + logoHalfWidth + margin,
+                halfWidth - logoHalfWidth - margin);
+        float y = bounce(frame * 0.0045f + 0.37f,
+                -halfHeight + logoHalfHeight + margin,
+                halfHeight - logoHalfHeight - margin);
+        drawPixelLogo(matrices, vertexConsumers, x, y, pixel,
+                logoHalfWidth, logoHalfHeight);
+    }
+
+    private void drawPixelLogo(MatrixStack matrices,
+                               VertexConsumerProvider vertexConsumers,
+                               float centerX, float centerY, float pixel,
+                               float halfWidth, float halfHeight) {
+        float left = centerX - halfWidth;
+        float bottom = centerY - halfHeight;
+        for (int row = 0; row < IDLE_LOGO.length; row++) {
+            String pixels = IDLE_LOGO[IDLE_LOGO.length - 1 - row];
+            for (int column = 0; column < pixels.length(); column++) {
+                if (pixels.charAt(column) != '1') {
+                    continue;
                 }
-                float x1 = -halfWidth + gx * cellWidth;
-                float y1 = -halfHeight + gy * cellHeight;
+                // Local screen X is mirrored when viewed from the display face.
+                float x1 = left + (pixels.length() - 1 - column) * pixel;
+                float y1 = bottom + row * pixel;
                 quad(matrices, vertexConsumers, x1, y1,
-                        x1 + cellWidth, y1 + cellHeight, r, g, b);
+                        x1 + pixel, y1 + pixel,
+                        LOGO_FACE_OFFSET, 96, 255, 96);
             }
         }
     }
 
-    /** Draws networked entity blips on top of the static. */
-    private void drawBlips(MatrixStack matrices, VertexConsumerProvider vertexConsumers,
-                           ScreenBlockEntity blockEntity, float halfWidth, float halfHeight) {
-        for (FeedBlip blip : blockEntity.getClientBlips()) {
-            float px = -halfWidth + blip.u() * halfWidth * 2f;
-            float py = halfHeight - blip.v() * halfHeight * 2f;
-            float s = 0.028f * Math.min(halfWidth * 2f, halfHeight * 2f);
-            switch (blip.kind()) {
-                case FeedBlip.KIND_PLAYER -> quad(matrices, vertexConsumers,
-                        px - s, py - s, px + s, py + s, 60, 255, 120);
-                case FeedBlip.KIND_MONSTER -> quad(matrices, vertexConsumers,
-                        px - s, py - s, px + s, py + s, 255, 70, 50);
-                default -> quad(matrices, vertexConsumers,
-                        px - s, py - s, px + s, py + s, 255, 220, 80);
-            }
+    /** Triangle wave constrained to [min, max], producing a clean edge bounce. */
+    private static float bounce(float distance, float min, float max) {
+        float range = max - min;
+        if (range <= 0f) {
+            return (min + max) / 2f;
         }
+        float phase = distance % (range * 2f);
+        return phase <= range ? min + phase : max - (phase - range);
     }
 
     private void drawText(MatrixStack matrices, VertexConsumerProvider vertexConsumers,
@@ -203,14 +212,17 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
     }
 
     private static void quad(MatrixStack matrices, VertexConsumerProvider vertexConsumers,
-                             float x1, float y1, float x2, float y2, int r, int g, int b) {
+                             float x1, float y1, float x2, float y2, float z,
+                             int r, int g, int b) {
         VertexConsumer buffer = vertexConsumers.getBuffer(RenderLayer.getDebugFilledBox());
         Matrix4f matrix = matrices.peek().getPositionMatrix();
-        float z = FACE_OFFSET;
+        // getDebugFilledBox uses a triangle strip: left-bottom, left-top,
+        // right-bottom, right-top. Standard quad ordering leaves one diagonal
+        // half culled, which caused the old triangular sparkle artifacts.
         buffer.vertex(matrix, x1, y1, z).color(r, g, b, 255);
         buffer.vertex(matrix, x1, y2, z).color(r, g, b, 255);
-        buffer.vertex(matrix, x2, y2, z).color(r, g, b, 255);
         buffer.vertex(matrix, x2, y1, z).color(r, g, b, 255);
+        buffer.vertex(matrix, x2, y2, z).color(r, g, b, 255);
     }
 
     private static float yawDegrees(Direction facing) {
@@ -224,10 +236,4 @@ public class ScreenFeedRenderer implements BlockEntityRenderer<ScreenBlockEntity
         };
     }
 
-    /** Deterministic integer hash so static is stable per cell per frame. */
-    private static int hash(int x, int y, int frame) {
-        long h = x * 374761393L + y * 668265263L + frame * 2246822519L;
-        h = (h ^ (h >>> 13)) * 1274126177L;
-        return (int) (h ^ (h >>> 16));
-    }
 }
