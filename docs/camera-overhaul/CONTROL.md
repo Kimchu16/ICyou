@@ -27,8 +27,9 @@ it in the commit that changes a roadmap item's status or contract.
 - PR 0 verification: `gradlew test build` passed on 2026-09-02 (three tests).
 - PR 1 verification: `gradlew clean test build` passed on 2026-09-02; eight
   tests total (five device-reference tests and three contract tests).
-- Current work: PR 2 server-global registry on `feature/cam-02-global-registry`.
-- Next dependency: PR 3 device integration after PR 2 CI passes and is merged.
+- PR 2 verification: `gradlew clean test build` passed locally with 12 tests;
+  child PR #10 CI passed and was squash-merged as `718dc63`.
+- Current work: stopped after PR 2. Next dependency: PR 3 device integration.
 - Existing runtime consumers still use position/int identity; conversion is
   intentionally deferred to PR 3.
 
@@ -40,8 +41,8 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 |---:|---|---|---|
 | 0 | Overhaul contracts and test scaffold | DONE | — |
 | 1 | Dimension-aware device identity | DONE | 0 |
-| 2 | Server-global registry | ACTIVE | 1 |
-| 3 | Device integration | BLOCKED | 2 |
+| 2 | Server-global registry | DONE | 1 |
+| 3 | Device integration | READY | 2 |
 | 4 | Migration, backup, ambiguity report | BLOCKED | 3 |
 | 5 | Ownership and tombstones | BLOCKED | 4 |
 | 6 | Server web lifecycle | BLOCKED | 2 |
@@ -101,7 +102,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 - [x] Registry mutations mark persistent state dirty; loading does not.
 - [x] Focused registry and persistence tests pass locally.
 - [x] Legacy 0.2.0 `DeviceRegistry` and its consumers remain unchanged for PR 3.
-- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
+- [x] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
