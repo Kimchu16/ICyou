@@ -40,6 +40,10 @@ it in the commit that changes a roadmap item's status or contract.
 - PR 4 verification: `gradlew clean test build` passed locally with 18 tests
   after adding backup-first conversion, an ambiguity report, migration state,
   and lazy upgrades for legacy item links.
+- PR 4 child PR #12 CI passed and was squash-merged as `49d8ed2`; its local and
+  remote child branches were deleted.
+- Current work: stopped after PR 4. Next dependency: PR 5 ownership and
+  tombstones.
 
 ## Roadmap and dependency status
 
@@ -51,8 +55,8 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 1 | Dimension-aware device identity | DONE | 0 |
 | 2 | Server-global registry | DONE | 1 |
 | 3 | Device integration | DONE | 2 |
-| 4 | Migration, backup, ambiguity report | ACTIVE | 3 |
-| 5 | Ownership and tombstones | BLOCKED | 4 |
+| 4 | Migration, backup, ambiguity report | DONE | 3 |
+| 5 | Ownership and tombstones | READY | 4 |
 | 6 | Server web lifecycle | BLOCKED | 2 |
 | 7 | Web gateway seam | BLOCKED | 6 |
 | 8 | Terminal authentication | BLOCKED | 5, 7 |
@@ -141,7 +145,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   typed reference/UUID components when used.
 - [x] Focused migration, backup, ambiguity, and persistence tests pass.
 - [x] `gradlew clean test build` passes after the full PR 4 change (18 tests).
-- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
+- [x] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
