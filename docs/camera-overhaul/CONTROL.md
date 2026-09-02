@@ -63,8 +63,9 @@ it in the commit that changes a roadmap item's status or contract.
 - PR 9 verification: `gradlew clean test build` passed locally with 42 tests;
   demand tests cover authenticated sessions, deduplication, renewal, closure,
   expiry, revocation, and shared lifecycle state.
-- Current work: PR 9 authenticated web demand is active on
-  `feature/cam-09-web-demand`.
+- PR 9 child PR #17 CI passed and was squash-merged as `c716551`; its local and
+  remote child branches were deleted.
+- Current work: stopped after PR 9. Next dependency: PR 10 unified demand manager.
 
 ## Roadmap and dependency status
 
@@ -81,8 +82,8 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 6 | Server web lifecycle | DONE | 2 |
 | 7 | Web gateway seam | DONE | 6 |
 | 8 | Terminal authentication | DONE | 5, 7 |
-| 9 | Web demand | ACTIVE | 8 |
-| 10 | Unified demand manager | BLOCKED | 9, 3 |
+| 9 | Web demand | DONE | 8 |
+| 10 | Unified demand manager | READY | 9, 3 |
 | 11 | Chunk leases | BLOCKED | 10 |
 | 12 | Supplemental random ticks | BLOCKED | 11 |
 | 13 | Render protocol | BLOCKED | 1, 10 |
@@ -264,7 +265,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 - [x] Focused tests cover authentication, camera ownership, deduplication, viewer
   counts, renewal, close, timeout, wrong-session denial, and revocation.
 - [x] `gradlew clean test build` passes after the full PR 9 change (42 tests).
-- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
+- [x] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
