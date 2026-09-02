@@ -16,6 +16,8 @@ it in the commit that changes a roadmap item's status or contract.
   be opened/merged without further approval when required CI passes. Direct
   pushes to `main` are forbidden.
 - CI is configured for PRs targeting both `main` and the integration branch.
+- After a child PR is merged, delete its local and remote branch. Commit subjects
+  and bodies should be short, plain-language summaries of the user-visible change.
 - `main` remains the target for ordinary urgent fixes, followed by integration.
 
 ## Current decisions and evidence
@@ -29,7 +31,11 @@ it in the commit that changes a roadmap item's status or contract.
   tests total (five device-reference tests and three contract tests).
 - PR 2 verification: `gradlew clean test build` passed locally with 12 tests;
   child PR #10 CI passed and was squash-merged as `718dc63`.
-- Current work: stopped after PR 2. Next dependency: PR 3 device integration.
+- PR 3 local verification: `gradlew clean test build` passed, followed by the
+  payload-codec regression test; 15 tests pass in total.
+  the legacy-registry runtime-consumer audit returned no matches.
+- Current work: PR 3 device integration on `feature/cam-03-device-integration`.
+- Next dependency: PR 4 migration after PR 3 CI passes and is merged.
 - Existing runtime consumers still use position/int identity; conversion is
   intentionally deferred to PR 3.
 
@@ -42,7 +48,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 0 | Overhaul contracts and test scaffold | DONE | — |
 | 1 | Dimension-aware device identity | DONE | 0 |
 | 2 | Server-global registry | DONE | 1 |
-| 3 | Device integration | READY | 2 |
+| 3 | Device integration | ACTIVE | 2 |
 | 4 | Migration, backup, ambiguity report | BLOCKED | 3 |
 | 5 | Ownership and tombstones | BLOCKED | 4 |
 | 6 | Server web lifecycle | BLOCKED | 2 |
@@ -103,6 +109,21 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 - [x] Focused registry and persistence tests pass locally.
 - [x] Legacy 0.2.0 `DeviceRegistry` and its consumers remain unchanged for PR 3.
 - [x] Child PR CI passes and the PR is squash-merged into the integration branch.
+
+## PR 3 acceptance criteria
+
+- [x] Terminal and screen block entities persist stable typed references/UUIDs.
+- [x] Setup Remote and Portable Screen components carry typed references rather
+  than bare positions; wireless item IDs are UUIDs.
+- [x] Blocks, device actions, subscriptions, snapshots, feed payloads, detached
+  views, GUI, HUD, RTT feed sharing, and local stream routing use stable IDs.
+- [x] Runtime device lookups resolve the referenced dimension explicitly.
+- [x] The legacy 0.2.0 `DeviceRegistry` has no runtime consumers and remains
+  intact solely as PR 4 migration input.
+- [x] Reference component-codec and registry relinking tests pass locally.
+- [x] Every migrated device payload round-trips typed references in a focused test.
+- [x] `gradlew clean test build` passes after the full PR 3 change.
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 

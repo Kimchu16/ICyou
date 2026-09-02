@@ -3,6 +3,8 @@ package com.matissjurevics.icyou.device;
 import java.util.Objects;
 import java.util.UUID;
 
+import com.mojang.serialization.Codec;
+
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
@@ -14,6 +16,8 @@ import net.minecraft.world.World;
 public record CameraRef(UUID deviceId, RegistryKey<World> dimension, BlockPos position)
         implements DeviceRef {
 
+    public static final Codec<CameraRef> CODEC = NbtCompound.CODEC.xmap(
+            CameraRef::fromNbt, CameraRef::toNbt);
     public static final PacketCodec<PacketByteBuf, CameraRef> PACKET_CODEC =
             PacketCodec.of(CameraRef::writePacket, CameraRef::readPacket);
 

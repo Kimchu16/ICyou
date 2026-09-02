@@ -3,6 +3,8 @@ package com.matissjurevics.icyou.device;
 import java.util.Objects;
 import java.util.UUID;
 
+import com.mojang.serialization.Codec;
+
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
@@ -14,6 +16,8 @@ import net.minecraft.world.World;
 public record TerminalRef(UUID deviceId, RegistryKey<World> dimension, BlockPos position)
         implements DeviceRef {
 
+    public static final Codec<TerminalRef> CODEC = NbtCompound.CODEC.xmap(
+            TerminalRef::fromNbt, TerminalRef::toNbt);
     public static final PacketCodec<PacketByteBuf, TerminalRef> PACKET_CODEC =
             PacketCodec.of(TerminalRef::writePacket, TerminalRef::readPacket);
 

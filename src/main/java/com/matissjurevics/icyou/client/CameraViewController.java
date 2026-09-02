@@ -3,6 +3,7 @@ package com.matissjurevics.icyou.client;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import com.matissjurevics.icyou.camera.CameraBlock;
 import com.matissjurevics.icyou.network.EnterCameraViewS2CPayload;
@@ -42,7 +43,8 @@ public final class CameraViewController {
     private static float viewYaw, viewPitch;
 
     /** Pan/tilt remembered per camera for this session (client-side only). */
-    private static final Map<BlockPos, float[]> REMEMBERED_ANGLES = new HashMap<>();
+    private static final Map<UUID, float[]> REMEMBERED_ANGLES = new HashMap<>();
+    private static UUID cameraId;
 
     /** The player's body rotation is frozen here while viewing. */
     private static float bodyYaw, bodyPitch;
@@ -65,6 +67,9 @@ public final class CameraViewController {
         }
         MinecraftClient client = MinecraftClient.getInstance();
         EnterCameraViewS2CPayload.CamRef first = cameras.get(0);
+        if (client.world == null || !client.world.getRegistryKey().equals(first.ref().dimension())) {
+            return;
+        }
 
         if (active && camPos != null) {
             saveAngles(); // remember where we left the previous camera
@@ -75,13 +80,14 @@ public final class CameraViewController {
     }
 
     private static void applyTarget(EnterCameraViewS2CPayload.CamRef ref, MinecraftClient client) {
-        camPos = ref.pos().toImmutable();
+        cameraId = ref.ref().deviceId();
+        camPos = ref.ref().position();
         camFacing = Direction.byId(ref.facingId());
         viewPos = Vec3d.ofCenter(camPos)
                 .add(new Vec3d(camFacing.getOffsetX(), 0, camFacing.getOffsetZ()).multiply(0.65))
                 .add(0, -0.1, 0);
 
-        float[] saved = REMEMBERED_ANGLES.get(camPos);
+        float[] saved = REMEMBERED_ANGLES.get(cameraId);
         viewYaw = saved != null ? saved[0] : yawFor(camFacing);
         // Horizontal cameras begin level with their block-facing direction.
         // Mouse tilt is still remembered after the user adjusts the view.
@@ -115,6 +121,7 @@ public final class CameraViewController {
         saveAngles();
         active = false;
         camPos = null;
+        cameraId = null;
         targets = List.of();
         targetIndex = 0;
         MinecraftClient.getInstance().gameRenderer.setRenderHand(true);
@@ -176,8 +183,8 @@ public final class CameraViewController {
     }
 
     private static void saveAngles() {
-        if (camPos != null) {
-            REMEMBERED_ANGLES.put(camPos, new float[] {viewYaw, viewPitch});
+        if (cameraId != null) {
+            REMEMBERED_ANGLES.put(cameraId, new float[] {viewYaw, viewPitch});
         }
     }
 

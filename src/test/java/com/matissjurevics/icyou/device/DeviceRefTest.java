@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import io.netty.buffer.Unpooled;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.registry.RegistryKey;
@@ -49,6 +50,24 @@ class DeviceRefTest {
                 () -> assertEquals(camera, packetRoundTrip(CameraRef.PACKET_CODEC, camera)),
                 () -> assertEquals(terminal, packetRoundTrip(TerminalRef.PACKET_CODEC, terminal)),
                 () -> assertEquals(screen, packetRoundTrip(ScreenRef.PACKET_CODEC, screen)));
+    }
+
+    @Test
+    void dataComponentCodecsRoundTripEveryReferenceType() {
+        CameraRef camera = new CameraRef(ID, DIMENSION, POSITION);
+        TerminalRef terminal = new TerminalRef(ID, DIMENSION, POSITION);
+        ScreenRef screen = new ScreenRef(ID, DIMENSION, POSITION);
+
+        assertAll(
+                () -> assertEquals(camera, CameraRef.CODEC.parse(NbtOps.INSTANCE,
+                        CameraRef.CODEC.encodeStart(NbtOps.INSTANCE, camera)
+                                .getOrThrow()).getOrThrow()),
+                () -> assertEquals(terminal, TerminalRef.CODEC.parse(NbtOps.INSTANCE,
+                        TerminalRef.CODEC.encodeStart(NbtOps.INSTANCE, terminal)
+                                .getOrThrow()).getOrThrow()),
+                () -> assertEquals(screen, ScreenRef.CODEC.parse(NbtOps.INSTANCE,
+                        ScreenRef.CODEC.encodeStart(NbtOps.INSTANCE, screen)
+                                .getOrThrow()).getOrThrow()));
     }
 
     @Test

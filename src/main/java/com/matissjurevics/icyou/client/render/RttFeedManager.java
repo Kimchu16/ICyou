@@ -10,7 +10,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
+import com.matissjurevics.icyou.device.CameraRef;
 import com.matissjurevics.icyou.client.stream.StreamFrame;
 import com.matissjurevics.icyou.client.stream.StreamStore;
 import com.matissjurevics.icyou.ICyouMod;
@@ -59,7 +61,7 @@ public final class RttFeedManager {
     private static final int MAX_FAILURES = 5;
 
     private static final Map<BlockPos, ScreenBlockEntity> SCREENS = new LinkedHashMap<>();
-    private static final Map<BlockPos, CameraFeed> FEEDS = new LinkedHashMap<>();
+    private static final Map<UUID, CameraFeed> FEEDS = new LinkedHashMap<>();
 
     private static boolean renderingFeed;
     private static Framebuffer renderTarget;
@@ -68,20 +70,22 @@ public final class RttFeedManager {
     private static ByteBuffer captureBuf;
 
     private static final class CameraFeed {
+        final UUID cameraId;
         final BlockPos cameraPos;
         final Identifier textureId;
         final SimpleFramebuffer framebuffer;
         Direction facing;
         long lastRender;
 
-        CameraFeed(MinecraftClient client, BlockPos cameraPos, Direction facing) {
-            this.cameraPos = cameraPos.toImmutable();
+        CameraFeed(MinecraftClient client, CameraRef camera, Direction facing) {
+            this.cameraId = camera.deviceId();
+            this.cameraPos = camera.position();
             this.facing = facing;
             this.framebuffer = new SimpleFramebuffer(
                     WIDTH, HEIGHT, true, MinecraftClient.IS_SYSTEM_MAC);
             this.framebuffer.setTexFilter(GL11.GL_LINEAR);
             this.textureId = Identifier.of(ICyouMod.MOD_ID,
-                    "camera_feed_" + Long.toUnsignedString(cameraPos.asLong()));
+                    "camera_feed_" + cameraId.toString().replace("-", ""));
             client.getTextureManager().registerTexture(textureId,
                     new FramebufferTexture(framebuffer.getColorAttachment()));
         }
@@ -90,6 +94,9 @@ public final class RttFeedManager {
             client.getTextureManager().destroyTexture(textureId);
             framebuffer.delete();
         }
+    }
+
+    private record CameraTarget(CameraRef ref, Direction facing) {
     }
 
     /** Texture-manager adapter for an FBO-owned color attachment. */
@@ -148,7 +155,7 @@ public final class RttFeedManager {
         }
 
         pruneScreens(client);
-        Map<BlockPos, Direction> active = collectActiveCameras(client);
+        Map<UUID, CameraTarget> active = collectActiveCameras(client);
         reconcileFeeds(client, active);
         if (active.isEmpty()) {
             return;
@@ -157,8 +164,8 @@ public final class RttFeedManager {
         long now = System.currentTimeMillis();
         CameraFeed next = active.entrySet().stream()
                 .map(entry -> FEEDS.computeIfAbsent(entry.getKey(), key ->
-                        new CameraFeed(client, key, entry.getValue())))
-                .peek(feed -> feed.facing = active.get(feed.cameraPos))
+                        new CameraFeed(client, entry.getValue().ref(), entry.getValue().facing())))
+                .peek(feed -> feed.facing = active.get(feed.cameraId).facing())
                 .filter(feed -> now - feed.lastRender >= FRAME_INTERVAL_MS)
                 .min(Comparator.comparingLong(feed -> feed.lastRender))
                 .orElse(null);
@@ -167,28 +174,30 @@ public final class RttFeedManager {
         }
     }
 
-    private static Map<BlockPos, Direction> collectActiveCameras(MinecraftClient client) {
-        Map<BlockPos, Direction> active = new LinkedHashMap<>();
+    private static Map<UUID, CameraTarget> collectActiveCameras(MinecraftClient client) {
+        Map<UUID, CameraTarget> active = new LinkedHashMap<>();
         double maxDistanceSq = SCREEN_VIEW_DISTANCE * SCREEN_VIEW_DISTANCE;
         for (ScreenBlockEntity screen : SCREENS.values()) {
-            BlockPos camPos = screen.getLastCamPos();
-            if (camPos == null || screen.getWorld() != client.world
+            CameraRef camera = screen.getLastCameraRef();
+            if (camera == null || !camera.dimension().equals(client.world.getRegistryKey())
+                    || screen.getWorld() != client.world
                     || client.player.squaredDistanceTo(Vec3d.ofCenter(screen.getPos()))
                     > maxDistanceSq) {
                 continue;
             }
-            active.put(camPos.toImmutable(), Direction.byId(screen.getLastFacingId()));
+            active.put(camera.deviceId(), new CameraTarget(
+                    camera, Direction.byId(screen.getLastFacingId())));
         }
         return active;
     }
 
     private static void reconcileFeeds(MinecraftClient client,
-                                       Map<BlockPos, Direction> active) {
-        Set<BlockPos> retained = new HashSet<>(active.keySet());
-        Iterator<Map.Entry<BlockPos, CameraFeed>> iterator = FEEDS.entrySet().iterator();
+                                       Map<UUID, CameraTarget> active) {
+        Set<UUID> retained = new HashSet<>(active.keySet());
+        Iterator<Map.Entry<UUID, CameraFeed>> iterator = FEEDS.entrySet().iterator();
         while (iterator.hasNext()) {
             CameraFeed feed = iterator.next().getValue();
-            if (!retained.contains(feed.cameraPos)) {
+            if (!retained.contains(feed.cameraId)) {
                 feed.close(client);
                 iterator.remove();
             }
@@ -310,7 +319,7 @@ public final class RttFeedManager {
                     GL11.GL_UNSIGNED_BYTE, captureBuf);
             byte[] jpg = encodeJpeg(captureBuf, WIDTH, HEIGHT);
             if (jpg != null && jpg.length > 0) {
-                StreamStore.put(feed.cameraPos.asLong(),
+                StreamStore.put(feed.cameraId,
                         new StreamFrame(jpg, System.currentTimeMillis()));
             }
         } catch (Throwable t) {
@@ -405,7 +414,7 @@ public final class RttFeedManager {
     }
 
     private static CameraFeed feedFor(ScreenBlockEntity screen) {
-        BlockPos camPos = screen.getLastCamPos();
-        return camPos == null ? null : FEEDS.get(camPos);
+        CameraRef camera = screen.getLastCameraRef();
+        return camera == null ? null : FEEDS.get(camera.deviceId());
     }
 }

@@ -25,7 +25,9 @@ import net.minecraft.world.World;
 
 import com.matissjurevics.icyou.client.render.RttFeedManager;
 import com.matissjurevics.icyou.registry.ModBlockEntities;
-import com.matissjurevics.icyou.terminal.DeviceRegistry;
+import com.matissjurevics.icyou.device.DeviceLocation;
+import com.matissjurevics.icyou.device.GlobalDeviceRegistry;
+import com.matissjurevics.icyou.device.ScreenRef;
 import net.minecraft.server.world.ServerWorld;
 
 /**
@@ -129,8 +131,7 @@ public class ScreenBlock extends Block implements BlockEntityProvider {
     @Override
     public BlockState onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
         if (!world.isClient) {
-            DeviceRegistry.get((ServerWorld) world).removeScreen(
-                    getControllerPos(state, pos));
+            removeRegistration((ServerWorld) world, getControllerPos(state, pos));
         }
         return super.onBreak(world, pos, state, player);
     }
@@ -140,9 +141,16 @@ public class ScreenBlock extends Block implements BlockEntityProvider {
                                    BlockState newState, boolean moved) {
         if (!state.isOf(newState.getBlock()) && !world.isClient
                 && world instanceof ServerWorld serverWorld) {
-            DeviceRegistry.get(serverWorld).removeScreen(getControllerPos(state, pos));
+            removeRegistration(serverWorld, getControllerPos(state, pos));
         }
         super.onStateReplaced(state, world, pos, newState, moved);
+    }
+
+    private static void removeRegistration(ServerWorld world, BlockPos position) {
+        GlobalDeviceRegistry registry = GlobalDeviceRegistry.get(world.getServer());
+        registry.deviceAt(new DeviceLocation(world.getRegistryKey(), position))
+                .filter(ScreenRef.class::isInstance).map(ScreenRef.class::cast)
+                .ifPresent(ref -> registry.removeScreen(ref.deviceId()));
     }
 
     @Override

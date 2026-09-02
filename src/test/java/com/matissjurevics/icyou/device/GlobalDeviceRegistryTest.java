@@ -88,6 +88,9 @@ class GlobalDeviceRegistryTest {
         assertEquals(original.camera(camera.deviceId()), restored.camera(camera.deviceId()));
         assertEquals(original.screen(screen.deviceId()), restored.screen(screen.deviceId()));
         assertEquals(camera, restored.deviceAt(DeviceLocation.of(camera)).orElseThrow());
+        assertEquals(original.slug(terminal.deviceId()), restored.slug(terminal.deviceId()));
+        assertEquals(terminal, restored.terminalBySlug(restored.slug(terminal.deviceId()))
+                .orElseThrow().ref());
         assertFalse(restored.isDirty());
 
         saved.putInt("schemaVersion", CameraOverhaulContracts.SAVE_SCHEMA_VERSION + 1);
@@ -114,6 +117,31 @@ class GlobalDeviceRegistryTest {
         assertTrue(registry.removeScreen(screen.deviceId()));
         assertTrue(registry.removeTerminal(terminal.deviceId()));
         assertEquals(0, registry.deviceCount());
+    }
+
+    @Test
+    void relinkingMovesTerminalIndexesAndClearsInvalidAssignments() {
+        GlobalDeviceRegistry registry = new GlobalDeviceRegistry();
+        TerminalRef first = terminal(40, OVERWORLD, new BlockPos(0, 90, 0));
+        TerminalRef second = terminal(41, NETHER, new BlockPos(0, 90, 0));
+        CameraRef camera = camera(42, OVERWORLD, new BlockPos(1, 90, 0));
+        ScreenRef screen = screen(43, OVERWORLD, new BlockPos(2, 90, 0));
+        registry.registerTerminal(first);
+        registry.registerTerminal(second);
+        registry.registerCamera(camera, first.deviceId(), "Camera");
+        registry.registerScreen(screen, first.deviceId(), "Screen",
+                Optional.of(camera.deviceId()));
+
+        registry.relinkCamera(camera.deviceId(), second.deviceId());
+
+        assertTrue(registry.camerasFor(first.deviceId()).isEmpty());
+        assertEquals(camera, registry.camerasFor(second.deviceId()).getFirst().ref());
+        assertTrue(registry.screen(screen.deviceId()).orElseThrow()
+                .assignedCameraId().isEmpty());
+
+        registry.relinkScreen(screen.deviceId(), second.deviceId());
+        assertTrue(registry.screensFor(first.deviceId()).isEmpty());
+        assertEquals(screen, registry.screensFor(second.deviceId()).getFirst().ref());
     }
 
     private static RegistryKey<World> world(String path) {

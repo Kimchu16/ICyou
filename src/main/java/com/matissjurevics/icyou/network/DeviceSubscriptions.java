@@ -8,97 +8,99 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.matissjurevics.icyou.camera.CameraBlock;
-import com.matissjurevics.icyou.terminal.DeviceRegistry;
+import com.matissjurevics.icyou.device.GlobalDeviceRegistry;
+import com.matissjurevics.icyou.device.TerminalRef;
 
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
-/**
- * Tracks which players have a terminal GUI or portable-screen HUD open, and
- * broadcasts fresh device snapshots to them after any change.
- */
+/** Tracks terminal snapshot subscriptions by stable terminal UUID. */
 public final class DeviceSubscriptions {
 
-    private DeviceSubscriptions() {}
+    private static final Map<UUID, Set<UUID>> SUBSCRIPTIONS = new HashMap<>();
 
-    private static final Map<BlockPos, Set<UUID>> SUBS = new HashMap<>();
-
-    public static void subscribe(BlockPos terminal, UUID uuid) {
-        SUBS.computeIfAbsent(terminal.toImmutable(), k -> new HashSet<>()).add(uuid);
+    private DeviceSubscriptions() {
     }
 
-    public static void unsubscribe(BlockPos terminal, UUID uuid) {
-        Set<UUID> set = SUBS.get(terminal);
-        if (set != null) {
-            set.remove(uuid);
-            if (set.isEmpty()) {
-                SUBS.remove(terminal);
+    public static void subscribe(UUID terminalId, UUID playerId) {
+        SUBSCRIPTIONS.computeIfAbsent(terminalId, key -> new HashSet<>()).add(playerId);
+    }
+
+    public static void unsubscribe(UUID terminalId, UUID playerId) {
+        Set<UUID> subscribers = SUBSCRIPTIONS.get(terminalId);
+        if (subscribers != null) {
+            subscribers.remove(playerId);
+            if (subscribers.isEmpty()) {
+                SUBSCRIPTIONS.remove(terminalId);
             }
         }
     }
 
-    public static void unsubscribeAll(UUID uuid) {
-        SUBS.values().forEach(set -> set.remove(uuid));
-        SUBS.values().removeIf(Set::isEmpty);
+    public static void unsubscribeAll(UUID playerId) {
+        SUBSCRIPTIONS.values().forEach(subscribers -> subscribers.remove(playerId));
+        SUBSCRIPTIONS.values().removeIf(Set::isEmpty);
     }
 
-    /** Sends a fresh snapshot for a terminal to all its subscribers. */
-    public static void broadcast(ServerWorld world, BlockPos terminal) {
-        broadcast(world, terminal, false);
+    public static void broadcast(MinecraftServer server, UUID terminalId) {
+        broadcast(server, terminalId, false);
     }
 
-    /** Refreshes every subscribed terminal (used on block breaks). */
-    public static void broadcastAll(ServerWorld world) {
-        for (BlockPos terminal : new HashSet<>(SUBS.keySet())) {
-            broadcast(world, terminal, false);
+    public static void broadcastAll(MinecraftServer server) {
+        for (UUID terminalId : new HashSet<>(SUBSCRIPTIONS.keySet())) {
+            broadcast(server, terminalId, false);
         }
     }
 
-    /** Sends a fresh snapshot; optionally tells clients to open the GUI. */
-    public static void broadcast(ServerWorld world, BlockPos terminal, boolean openGui) {
-        Set<UUID> set = SUBS.get(terminal);
-        if (set == null || set.isEmpty()) {
+    public static void broadcast(MinecraftServer server, UUID terminalId, boolean openGui) {
+        Set<UUID> subscribers = SUBSCRIPTIONS.get(terminalId);
+        if (subscribers == null || subscribers.isEmpty()) {
             return;
         }
-        DeviceSnapshotS2CPayload payload = buildSnapshot(world, terminal, openGui);
-        for (UUID uuid : new HashSet<>(set)) {
-            var player = world.getServer().getPlayerManager().getPlayer(uuid);
+        TerminalRef terminal = GlobalDeviceRegistry.get(server).terminal(terminalId)
+                .orElseThrow().ref();
+        DeviceSnapshotS2CPayload payload = buildSnapshot(server, terminal, openGui);
+        for (UUID playerId : new HashSet<>(subscribers)) {
+            var player = server.getPlayerManager().getPlayer(playerId);
             if (player != null) {
                 ServerPlayNetworking.send(player, payload);
             }
         }
     }
 
-    /** Builds the enriched snapshot for a terminal. */
-    public static DeviceSnapshotS2CPayload buildSnapshot(ServerWorld world, BlockPos terminal,
+    public static DeviceSnapshotS2CPayload buildSnapshot(MinecraftServer server,
+                                                         TerminalRef terminal,
                                                          boolean openGui) {
-        DeviceRegistry reg = DeviceRegistry.get(world);
+        GlobalDeviceRegistry registry = GlobalDeviceRegistry.get(server);
+        var registeredTerminal = registry.terminal(terminal.deviceId())
+                .filter(entry -> entry.ref().equals(terminal))
+                .orElseThrow(() -> new IllegalArgumentException("Unknown terminal reference"));
 
-        List<DeviceSnapshotS2CPayload.Cam> cameras = reg.camerasFor(terminal).stream().map(c -> {
-            var state = world.getBlockState(c.pos());
-            int facingId = state.getBlock() instanceof CameraBlock
-                    ? state.get(CameraBlock.FACING).getId()
+        List<DeviceSnapshotS2CPayload.Cam> cameras = registry.camerasFor(
+                terminal.deviceId()).stream().map(camera -> {
+            ServerWorld world = server.getWorld(camera.ref().dimension());
+            var state = world == null ? null : world.getBlockState(camera.ref().position());
+            boolean online = state != null && state.getBlock() instanceof CameraBlock;
+            int facingId = online ? state.get(CameraBlock.FACING).getId()
                     : Direction.NORTH.getId();
-            boolean online = state.getBlock() instanceof CameraBlock;
             return new DeviceSnapshotS2CPayload.Cam(
-                    c.id(), c.name(), c.pos(), facingId, online);
+                    camera.ref(), camera.name(), facingId, online);
         }).toList();
 
-        List<DeviceSnapshotS2CPayload.Scr> screens = reg.screensFor(terminal).stream().map(s -> {
-            DeviceRegistry.CameraDevice camDevice = s.assignedCamId() >= 0
-                    ? reg.cameraById(s.assignedCamId()).orElse(null) : null;
-            boolean online = camDevice != null
-                    && world.getBlockState(camDevice.pos()).getBlock() instanceof CameraBlock;
-            return new DeviceSnapshotS2CPayload.Scr(s.id(), s.name(), s.assignedCamId(),
-                    camDevice != null ? camDevice.name() : "\u2014", online);
+        List<DeviceSnapshotS2CPayload.Scr> screens = registry.screensFor(
+                terminal.deviceId()).stream().map(screen -> {
+            GlobalDeviceRegistry.CameraEntry camera = screen.assignedCameraId()
+                    .flatMap(registry::camera).orElse(null);
+            ServerWorld cameraWorld = camera == null
+                    ? null : server.getWorld(camera.ref().dimension());
+            boolean online = cameraWorld != null && cameraWorld.getBlockState(
+                    camera.ref().position()).getBlock() instanceof CameraBlock;
+            return new DeviceSnapshotS2CPayload.Scr(screen.ref(), screen.name(),
+                    screen.assignedCameraId(), camera == null ? "—" : camera.name(), online);
         }).toList();
 
-        List<DeviceSnapshotS2CPayload.Wrl> wireless = reg.wirelessFor(terminal).stream()
-                .map(w -> new DeviceSnapshotS2CPayload.Wrl(w.id(), w.name())).toList();
-
-        return new DeviceSnapshotS2CPayload(openGui, terminal, reg.ensureSlug(terminal),
-                cameras, screens, wireless);
+        return new DeviceSnapshotS2CPayload(openGui, registeredTerminal.ref(),
+                registry.slug(terminal.deviceId()), cameras, screens, List.of());
     }
 }
