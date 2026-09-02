@@ -5,10 +5,10 @@ it in the commit that changes a roadmap item's status or contract.
 
 ## Branch and release control
 
-- Integration: local `feature/camera-overhaul`, based on `main` commit
+- Integration: published `feature/camera-overhaul`, based on `main` commit
   `8d3d0b7`. The primary worktree keeps `main`; the Codex worktree owns the
   integration branch.
-- Umbrella PR: planned draft `feature/camera-overhaul -> main`.
+- Umbrella PR: draft #9, `feature/camera-overhaul -> main`; baseline CI passed.
 - Child PRs: preserve the numbered cut points below as verified commits and
   target the integration branch. Prefer squash merge for child PRs and a merge
   commit for the eventual umbrella PR.
@@ -27,7 +27,8 @@ it in the commit that changes a roadmap item's status or contract.
 - PR 0 verification: `gradlew test build` passed on 2026-09-02 (three tests).
 - PR 1 verification: `gradlew clean test build` passed on 2026-09-02; eight
   tests total (five device-reference tests and three contract tests).
-- Current work: stopped after PR 1. Next dependency: PR 2 server-global registry.
+- Current work: PR 2 server-global registry on `feature/cam-02-global-registry`.
+- Next dependency: PR 3 device integration after PR 2 CI passes and is merged.
 - Existing runtime consumers still use position/int identity; conversion is
   intentionally deferred to PR 3.
 
@@ -39,7 +40,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 |---:|---|---|---|
 | 0 | Overhaul contracts and test scaffold | DONE | — |
 | 1 | Dimension-aware device identity | DONE | 0 |
-| 2 | Server-global registry | READY | 1 |
+| 2 | Server-global registry | ACTIVE | 1 |
 | 3 | Device integration | BLOCKED | 2 |
 | 4 | Migration, backup, ambiguity report | BLOCKED | 3 |
 | 5 | Ownership and tombstones | BLOCKED | 4 |
@@ -88,6 +89,19 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   migrated in this PR.
 - [x] PR 1 is recorded as a distinct local commit and control state names PR 2
   as the next dependency.
+
+## PR 2 acceptance criteria
+
+- [x] One registry is persisted per logical server through the Overworld state
+  manager while accepting device references from every dimension.
+- [x] UUID, dimension-aware location, and terminal-child indexes stay coherent
+  across registration, assignment, removal, and save reload.
+- [x] Duplicate UUIDs/locations, missing terminals, cross-terminal assignments,
+  invalid names, and unsupported save schemas are rejected.
+- [x] Registry mutations mark persistent state dirty; loading does not.
+- [x] Focused registry and persistence tests pass locally.
+- [x] Legacy 0.2.0 `DeviceRegistry` and its consumers remain unchanged for PR 3.
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
