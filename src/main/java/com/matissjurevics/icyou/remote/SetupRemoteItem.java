@@ -39,6 +39,10 @@ public class SetupRemoteItem extends Item {
         ItemStack stack = context.getStack();
         var player = context.getPlayer();
 
+        if (!world.isClient) {
+            upgradeLegacyLinks(stack, (ServerWorld) world);
+        }
+
         // --- Pick up a camera link ---
         if (world.getBlockState(pos).getBlock() instanceof CameraBlock) {
             if (!world.isClient) {
@@ -50,6 +54,7 @@ public class SetupRemoteItem extends Item {
                         .orElseGet(() -> new CameraRef(UUID.randomUUID(),
                                 serverWorld.getRegistryKey(), pos));
                 stack.set(ModDataComponentTypes.LINKED_CAMERA, ref);
+                stack.remove(ModDataComponentTypes.LEGACY_LINKED_CAMERA);
                 if (player != null) {
                     player.sendMessage(Text.literal("Camera link picked up at " + pos.toShortString()), true);
                 }
@@ -70,6 +75,7 @@ public class SetupRemoteItem extends Item {
                         .orElseGet(() -> new ScreenRef(UUID.randomUUID(),
                                 serverWorld.getRegistryKey(), controllerPos));
                 stack.set(ModDataComponentTypes.LINKED_SCREEN, ref);
+                stack.remove(ModDataComponentTypes.LEGACY_LINKED_SCREEN);
                 if (player != null) {
                     player.sendMessage(Text.literal("Screen link picked up at "
                             + controllerPos.toShortString()), true);
@@ -142,5 +148,27 @@ public class SetupRemoteItem extends Item {
 
     private static String shortName(String prefix, UUID id) {
         return prefix + "-" + id.toString().substring(0, 8).toUpperCase();
+    }
+
+    private static void upgradeLegacyLinks(ItemStack stack, ServerWorld world) {
+        GlobalDeviceRegistry registry = GlobalDeviceRegistry.get(world.getServer());
+        BlockPos cameraPos = stack.get(ModDataComponentTypes.LEGACY_LINKED_CAMERA);
+        if (stack.get(ModDataComponentTypes.LINKED_CAMERA) == null && cameraPos != null) {
+            CameraRef ref = registry.deviceAt(new DeviceLocation(world.getRegistryKey(), cameraPos))
+                    .filter(CameraRef.class::isInstance).map(CameraRef.class::cast)
+                    .orElseGet(() -> new CameraRef(UUID.randomUUID(),
+                            world.getRegistryKey(), cameraPos));
+            stack.set(ModDataComponentTypes.LINKED_CAMERA, ref);
+            stack.remove(ModDataComponentTypes.LEGACY_LINKED_CAMERA);
+        }
+        BlockPos screenPos = stack.get(ModDataComponentTypes.LEGACY_LINKED_SCREEN);
+        if (stack.get(ModDataComponentTypes.LINKED_SCREEN) == null && screenPos != null) {
+            ScreenRef ref = registry.deviceAt(new DeviceLocation(world.getRegistryKey(), screenPos))
+                    .filter(ScreenRef.class::isInstance).map(ScreenRef.class::cast)
+                    .orElseGet(() -> new ScreenRef(UUID.randomUUID(),
+                            world.getRegistryKey(), screenPos));
+            stack.set(ModDataComponentTypes.LINKED_SCREEN, ref);
+            stack.remove(ModDataComponentTypes.LEGACY_LINKED_SCREEN);
+        }
     }
 }

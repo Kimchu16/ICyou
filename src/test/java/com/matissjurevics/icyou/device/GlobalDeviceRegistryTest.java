@@ -79,6 +79,7 @@ class GlobalDeviceRegistryTest {
         original.registerCamera(camera, terminal.deviceId(), "Nether Yard");
         original.registerScreen(screen, terminal.deviceId(), "Main Screen",
                 Optional.of(camera.deviceId()));
+        original.markLegacyMigrationComplete();
 
         NbtCompound saved = original.writeNbt(new NbtCompound(), null);
         GlobalDeviceRegistry restored = GlobalDeviceRegistry.readNbt(saved, null);
@@ -92,6 +93,7 @@ class GlobalDeviceRegistryTest {
         assertEquals(terminal, restored.terminalBySlug(restored.slug(terminal.deviceId()))
                 .orElseThrow().ref());
         assertFalse(restored.isDirty());
+        assertTrue(restored.isLegacyMigrationComplete());
 
         saved.putInt("schemaVersion", CameraOverhaulContracts.SAVE_SCHEMA_VERSION + 1);
         assertThrows(IllegalArgumentException.class,
