@@ -49,8 +49,9 @@ it in the commit that changes a roadmap item's status or contract.
   remote child branches were deleted.
 - PR 6 verification: `gradlew clean test build` passed locally with 28 tests;
   six focused tests cover safe config, bind lifecycle, health, failure, and cleanup.
-- Current work: PR 6 server web lifecycle is active on
-  `feature/cam-06-server-web-lifecycle`.
+- PR 6 child PR #14 CI passed and was squash-merged as `d8e76f1`; its local and
+  remote child branches were deleted.
+- Current work: stopped after PR 6. Next dependency: PR 7 web gateway seam.
 
 ## Roadmap and dependency status
 
@@ -64,8 +65,8 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 3 | Device integration | DONE | 2 |
 | 4 | Migration, backup, ambiguity report | DONE | 3 |
 | 5 | Ownership and tombstones | DONE | 4 |
-| 6 | Server web lifecycle | ACTIVE | 2 |
-| 7 | Web gateway seam | BLOCKED | 6 |
+| 6 | Server web lifecycle | DONE | 2 |
+| 7 | Web gateway seam | READY | 6 |
 | 8 | Terminal authentication | BLOCKED | 5, 7 |
 | 9 | Web demand | BLOCKED | 8 |
 | 10 | Unified demand manager | BLOCKED | 9, 3 |
@@ -190,7 +191,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 - [x] Focused tests cover opt-in configuration, idempotent startup, health,
   occupied-port failure, and deterministic cleanup.
 - [x] `gradlew clean test build` passes after the full PR 6 change (28 tests).
-- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
+- [x] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
