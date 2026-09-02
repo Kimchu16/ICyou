@@ -55,7 +55,11 @@ it in the commit that changes a roadmap item's status or contract.
   gateway tests cover neutral routing, defensive bytes, and safe headers.
 - PR 7 child PR #15 CI passed and was squash-merged as `d67f9a0`; its local and
   remote child branches were deleted.
-- Current work: stopped after PR 7. Next dependency: PR 8 terminal authentication.
+- PR 8 verification: `gradlew clean test build` passed locally with 37 tests;
+  authentication tests cover scopes, persistence, revocation, nondisclosure,
+  bounded headers, and authenticated metadata.
+- Current work: PR 8 terminal authentication is active on
+  `feature/cam-08-terminal-authentication`.
 
 ## Roadmap and dependency status
 
@@ -71,7 +75,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 5 | Ownership and tombstones | DONE | 4 |
 | 6 | Server web lifecycle | DONE | 2 |
 | 7 | Web gateway seam | DONE | 6 |
-| 8 | Terminal authentication | READY | 5, 7 |
+| 8 | Terminal authentication | ACTIVE | 5, 7 |
 | 9 | Web demand | BLOCKED | 8 |
 | 10 | Unified demand manager | BLOCKED | 9, 3 |
 | 11 | Chunk leases | BLOCKED | 10 |
@@ -215,6 +219,29 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   response translation, routing, defensive copies, and unsafe headers.
 - [x] `gradlew clean test build` passes after the full PR 7 change (30 tests).
 - [x] Child PR CI passes and the PR is squash-merged into the integration branch.
+
+## PR 8 acceptance criteria
+
+- [x] Viewer and owner credentials are separate, terminal-scoped, independently
+  revocable, and owner credentials may satisfy viewer access.
+- [x] Tokens contain 256 bits of secure random secret material and are shown only
+  when issued; persistent state stores SHA-256 digests, never plaintext tokens.
+- [x] Owner/operator commands issue one token, revoke one credential ID, or revoke
+  every credential of one scope without broadcasting the secret.
+- [x] `AUTHENTICATION.md` explains opt-in configuration, token scope, bearer use,
+  one-token and whole-scope revocation, and plaintext handling.
+- [x] The embedded gateway parses bounded request headers, normalizes names, and
+  rejects duplicates and unsafe control characters.
+- [x] Terminal routes authenticate the bearer token before resolving its terminal
+  slug and return the same 404 shape for missing, invalid, cross-terminal, revoked,
+  or unknown credentials.
+- [x] Authenticated viewer or owner tokens can read terminal and camera metadata;
+  unauthenticated callers can read only `/health`.
+- [x] Focused tests cover scope separation, wrong-terminal denial, malformed
+  tokens, revocation, digest-only persistence, metadata nondisclosure, and JSON
+  escaping.
+- [x] `gradlew clean test build` passes after the full PR 8 change (37 tests).
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 

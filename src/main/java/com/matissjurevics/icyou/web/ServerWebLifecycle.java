@@ -5,6 +5,7 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 
 import com.matissjurevics.icyou.ICyouMod;
+import com.matissjurevics.icyou.web.auth.TerminalWebController;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.loader.api.FabricLoader;
@@ -43,7 +44,7 @@ public final class ServerWebLifecycle {
         }
         WebGateway gateway = new EmbeddedWebGateway(error ->
                 ICyouMod.LOGGER.error("ICyou server web listener failed", error));
-        if (gateway.start(config, ServerWebLifecycle::handle)) {
+        if (gateway.start(config, new TerminalWebController(server)::handle)) {
             GATEWAYS.put(server, gateway);
             var address = gateway.boundAddress().orElseThrow();
             ICyouMod.LOGGER.info("ICyou server web listener started on {}:{}",
@@ -63,10 +64,4 @@ public final class ServerWebLifecycle {
         return GATEWAYS.size();
     }
 
-    private static WebResponse handle(WebRequest request) {
-        if (request.method().equals("GET") && request.path().equals("/health")) {
-            return WebResponse.json(200, "{\"status\":\"ok\"}");
-        }
-        return WebResponse.notFound();
-    }
 }

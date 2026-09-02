@@ -7,6 +7,9 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -104,8 +107,10 @@ public final class ServerWebRuntime implements AutoCloseable {
         try (Socket client = socket;
              OutputStream output = client.getOutputStream()) {
             client.setSoTimeout(5_000);
-            String request = readRequestLine(client.getInputStream());
-            WebResponse response = route(request);
+            InputStream input = client.getInputStream();
+            String request = readAsciiLine(input, 2_048);
+            Map<String, String> headers = readHeaders(input);
+            WebResponse response = route(request, headers);
             writeResponse(output, response);
             output.flush();
         } catch (IOException ignored) {
@@ -115,16 +120,17 @@ public final class ServerWebRuntime implements AutoCloseable {
         }
     }
 
-    private WebResponse route(String requestLine) {
-        if (requestLine == null) {
-            return WebResponse.notFound();
+    private WebResponse route(String requestLine, Map<String, String> headers) {
+        if (requestLine == null || headers == null) {
+            return WebResponse.json(400, "{\"error\":\"bad_request\"}");
         }
         String[] parts = requestLine.split(" ", 3);
         if (parts.length != 3 || !parts[2].startsWith("HTTP/")) {
             return WebResponse.notFound();
         }
         try {
-            WebResponse response = requestHandler.handle(new WebRequest(parts[0], parts[1]));
+            WebResponse response = requestHandler.handle(
+                    new WebRequest(parts[0], parts[1], headers));
             return response == null ? WebResponse.notFound() : response;
         } catch (RuntimeException error) {
             failureHandler.accept(error);
@@ -160,9 +166,40 @@ public final class ServerWebRuntime implements AutoCloseable {
         };
     }
 
-    private static String readRequestLine(InputStream input) throws IOException {
+    private static Map<String, String> readHeaders(InputStream input) throws IOException {
+        Map<String, String> headers = new LinkedHashMap<>();
+        int remaining = 8_192;
+        for (int count = 0; count < 32; count++) {
+            String line = readAsciiLine(input, Math.min(2_048, remaining));
+            if (line == null) {
+                return null;
+            }
+            remaining -= line.length() + 2;
+            if (line.isEmpty()) {
+                return Map.copyOf(headers);
+            }
+            int separator = line.indexOf(':');
+            if (separator <= 0 || remaining <= 0) {
+                return null;
+            }
+            String name = line.substring(0, separator).trim().toLowerCase(Locale.ROOT);
+            String value = line.substring(separator + 1).trim();
+            boolean unsafeValue = value.chars().anyMatch(character ->
+                    character < 0x20 && character != '\t' || character == 0x7f);
+            if (!name.matches("[a-z0-9-]+") || unsafeValue
+                    || headers.putIfAbsent(name, value) != null) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private static String readAsciiLine(InputStream input, int limit) throws IOException {
+        if (limit <= 0) {
+            return null;
+        }
         StringBuilder line = new StringBuilder();
-        for (int count = 0; count < 2_048; count++) {
+        for (int count = 0; count < limit; count++) {
             int next = input.read();
             if (next < 0 || next == '\n') {
                 return line.toString();
