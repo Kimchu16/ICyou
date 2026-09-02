@@ -4,20 +4,21 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.matissjurevics.icyou.ICyouMod;
+import com.matissjurevics.icyou.device.CameraRef;
+import com.matissjurevics.icyou.device.ScreenRef;
 import com.matissjurevics.icyou.feed.FeedBlip;
 
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
 
 /**
  * Server → client: latest stylized-feed snapshot for one screen block —
  * the blips, the camera facing (for the HUD label), and the channel position
  * within the paired terminal.
  */
-public record FeedDataS2CPayload(BlockPos screenPos, BlockPos camPos, int facingId,
+public record FeedDataS2CPayload(ScreenRef screen, CameraRef camera, int facingId,
                                  int index, int count, List<FeedBlip> blips)
         implements CustomPayload {
 
@@ -28,8 +29,8 @@ public record FeedDataS2CPayload(BlockPos screenPos, BlockPos camPos, int facing
             PacketCodec.of(FeedDataS2CPayload::write, FeedDataS2CPayload::read);
 
     private static void write(FeedDataS2CPayload payload, RegistryByteBuf buf) {
-        buf.writeBlockPos(payload.screenPos());
-        buf.writeBlockPos(payload.camPos());
+        ScreenRef.PACKET_CODEC.encode(buf, payload.screen());
+        CameraRef.PACKET_CODEC.encode(buf, payload.camera());
         buf.writeVarInt(payload.facingId());
         buf.writeVarInt(payload.index());
         buf.writeVarInt(payload.count());
@@ -42,8 +43,8 @@ public record FeedDataS2CPayload(BlockPos screenPos, BlockPos camPos, int facing
     }
 
     private static FeedDataS2CPayload read(RegistryByteBuf buf) {
-        BlockPos screenPos = buf.readBlockPos();
-        BlockPos camPos = buf.readBlockPos();
+        ScreenRef screen = ScreenRef.PACKET_CODEC.decode(buf);
+        CameraRef camera = CameraRef.PACKET_CODEC.decode(buf);
         int facingId = buf.readVarInt();
         int index = buf.readVarInt();
         int count = buf.readVarInt();
@@ -52,7 +53,7 @@ public record FeedDataS2CPayload(BlockPos screenPos, BlockPos camPos, int facing
         for (int i = 0; i < blipCount; i++) {
             blips.add(new FeedBlip(buf.readFloat(), buf.readFloat(), buf.readByte()));
         }
-        return new FeedDataS2CPayload(screenPos, camPos, facingId, index, count, blips);
+        return new FeedDataS2CPayload(screen, camera, facingId, index, count, blips);
     }
 
     @Override

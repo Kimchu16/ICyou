@@ -12,6 +12,8 @@ import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -86,6 +88,16 @@ public class CameraTerminalBlock extends Block implements BlockEntityProvider {
     }
 
     @Override
+    public void onPlaced(World world, BlockPos pos, BlockState state,
+                         LivingEntity placer, ItemStack itemStack) {
+        super.onPlaced(world, pos, state, placer, itemStack);
+        if (world instanceof ServerWorld serverWorld
+                && world.getBlockEntity(pos) instanceof CameraTerminalBlockEntity terminal) {
+            terminal.initialize(serverWorld);
+        }
+    }
+
+    @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state,
                                                                  BlockEntityType<T> type) {
         return null;
@@ -98,20 +110,26 @@ public class CameraTerminalBlock extends Block implements BlockEntityProvider {
             return ActionResult.SUCCESS;
         }
         ServerWorld serverWorld = (ServerWorld) world;
+        if (!(world.getBlockEntity(pos) instanceof CameraTerminalBlockEntity terminal)) {
+            return ActionResult.FAIL;
+        }
+        var terminalRef = terminal.initialize(serverWorld);
 
         if (player.isSneaking()) {
             player.sendMessage(Text.literal("── ICyou LIVE ──"), false);
             int index = 1;
-            for (BlockPos camera : new CameraTerminalBlockEntity(pos, state)
-                    .getCameras(serverWorld)) {
-                player.sendMessage(CameraViews.describe(world, camera, index++), false);
+            for (var camera : terminal.getCameras(serverWorld)) {
+                ServerWorld cameraWorld = serverWorld.getServer().getWorld(camera.dimension());
+                player.sendMessage(cameraWorld == null
+                        ? Text.literal("CAM-" + index++ + ": dimension unavailable")
+                        : CameraViews.describe(cameraWorld, camera.position(), index++), false);
             }
             return ActionResult.SUCCESS;
         }
 
-        DeviceSubscriptions.subscribe(pos, player.getUuid());
+        DeviceSubscriptions.subscribe(terminalRef.deviceId(), player.getUuid());
         ServerPlayNetworking.send((ServerPlayerEntity) player,
-                DeviceSubscriptions.buildSnapshot(serverWorld, pos, true));
+                DeviceSubscriptions.buildSnapshot(serverWorld.getServer(), terminalRef, true));
         return ActionResult.SUCCESS;
     }
 }

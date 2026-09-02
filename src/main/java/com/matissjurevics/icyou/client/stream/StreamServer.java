@@ -9,6 +9,7 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -16,12 +17,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import com.matissjurevics.icyou.ICyouMod;
-import com.matissjurevics.icyou.terminal.DeviceRegistry;
+import com.matissjurevics.icyou.device.GlobalDeviceRegistry;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.BlockPos;
 import org.lwjgl.system.MemoryUtil;
 
 /**
@@ -178,8 +178,9 @@ public final class StreamServer {
         }
     }
 
-    private static long parseCamKey(String s) {
-        return Long.parseLong(s);
+    private static UUID parseCamKey(String value) {
+        return UUID.fromString(value.endsWith(".jpg")
+                ? value.substring(0, value.length() - 4) : value);
     }
 
     // --- terminal list (GET /) ---
@@ -190,11 +191,11 @@ public final class StreamServer {
             if (srv == null) {
                 return null;
             }
-            DeviceRegistry reg = DeviceRegistry.get(srv.getOverworld());
+            GlobalDeviceRegistry reg = GlobalDeviceRegistry.get(srv);
             StringBuilder sb = new StringBuilder();
-            for (BlockPos t : reg.terminalPositions()) {
-                String slug = reg.ensureSlug(t);
-                int cams = reg.camerasFor(t).size();
+            for (UUID terminalId : reg.terminalIds()) {
+                String slug = reg.slug(terminalId);
+                int cams = reg.camerasFor(terminalId).size();
                 sb.append("<li><a href=\"/").append(slug).append("\">")
                         .append(esc(slug)).append("</a><span class=\"n\">")
                         .append(cams).append(" cameras</span></li>");
@@ -216,13 +217,12 @@ public final class StreamServer {
             if (srv == null) {
                 return null;
             }
-            ServerWorld world = srv.getOverworld();
-            DeviceRegistry reg = DeviceRegistry.get(world);
-            BlockPos terminal = findTerminalBySlug(reg, slug);
-            if (terminal == null) {
+            GlobalDeviceRegistry reg = GlobalDeviceRegistry.get(srv);
+            var terminal = reg.terminalBySlug(slug);
+            if (terminal.isEmpty()) {
                 return "\u0000NOTFOUND";
             }
-            return terminalPageHtml(reg, terminal, world, slug);
+            return terminalPageHtml(reg, terminal.orElseThrow().ref().deviceId(), srv, slug);
         });
         if (body == null) {
             send(out, 200, "text/html", page("ICyou", "<p>This client isn't hosting a world.</p>"));
@@ -233,25 +233,17 @@ public final class StreamServer {
         }
     }
 
-    private static BlockPos findTerminalBySlug(DeviceRegistry reg, String slug) {
-        for (BlockPos t : reg.terminalPositions()) {
-            if (reg.ensureSlug(t).equals(slug)) {
-                return t;
-            }
-        }
-        return null;
-    }
-
-    private static String terminalPageHtml(DeviceRegistry reg, BlockPos terminal,
-                                           ServerWorld world, String slug) {
-        var cams = reg.camerasFor(terminal);
+    private static String terminalPageHtml(GlobalDeviceRegistry reg, UUID terminalId,
+                                           MinecraftServer server, String slug) {
+        var cams = reg.camerasFor(terminalId);
         StringBuilder rows = new StringBuilder();
         for (var c : cams) {
-            boolean online = isCameraOnline(world, c.pos());
+            ServerWorld world = server.getWorld(c.ref().dimension());
+            boolean online = isCameraOnline(world, c.ref().position());
             rows.append("<div class=\"cam\"><b>").append(esc(c.name())).append("</b> ")
                     .append(online ? "<span class=on>live</span>" : "<span class=off>no signal</span>")
                     .append("<img src=\"/").append(slug).append("/stream/")
-                    .append(c.pos().asLong()).append("\" loading=\"lazy\"></div>");
+                    .append(c.ref().deviceId()).append("\" loading=\"lazy\"></div>");
         }
         if (rows.length() == 0) {
             rows.append("<p>No cameras linked to this terminal.</p>");
@@ -259,9 +251,9 @@ public final class StreamServer {
         return page(slug, "<div class=\"grid\">" + rows + "</div>");
     }
 
-    private static boolean isCameraOnline(ServerWorld world, BlockPos pos) {
+    private static boolean isCameraOnline(ServerWorld world, net.minecraft.util.math.BlockPos pos) {
         try {
-            return world.getBlockState(pos).getBlock()
+            return world != null && world.getBlockState(pos).getBlock()
                     instanceof com.matissjurevics.icyou.camera.CameraBlock;
         } catch (Throwable t) {
             return false;
@@ -270,7 +262,7 @@ public final class StreamServer {
 
     // --- stream (GET /<slug>/stream/<camKey>) ---
 
-    private static void handleStream(OutputStream out, long camKey) throws IOException {
+    private static void handleStream(OutputStream out, UUID camKey) throws IOException {
         out.write(("HTTP/1.1 200 OK\r\nContent-Type: multipart/x-mixed-replace; "
                 + "boundary=frame\r\n\r\n").getBytes(StandardCharsets.US_ASCII));
         long lastTs = Long.MIN_VALUE;
@@ -300,7 +292,7 @@ public final class StreamServer {
 
     // --- snapshot (GET /<slug>/snapshot/<camKey>.jpg) ---
 
-    private static void handleSnapshot(OutputStream out, long camKey) throws IOException {
+    private static void handleSnapshot(OutputStream out, UUID camKey) throws IOException {
         StreamFrame f = StreamStore.get(camKey);
         if (f == null) {
             send(out, 404, "text/html", "no frame");

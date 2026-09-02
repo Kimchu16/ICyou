@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.matissjurevics.icyou.overhaul.CameraOverhaulContracts;
+import com.matissjurevics.icyou.terminal.SlugToken;
 
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
@@ -38,6 +39,7 @@ public final class GlobalDeviceRegistry extends PersistentState {
     private final Map<UUID, TerminalEntry> terminals = new LinkedHashMap<>();
     private final Map<UUID, CameraEntry> cameras = new LinkedHashMap<>();
     private final Map<UUID, ScreenEntry> screens = new LinkedHashMap<>();
+    private final Map<UUID, String> slugByTerminal = new LinkedHashMap<>();
 
     private final Map<UUID, DeviceRef> devicesById = new LinkedHashMap<>();
     private final Map<DeviceLocation, UUID> deviceIdsByLocation = new LinkedHashMap<>();
@@ -75,13 +77,26 @@ public final class GlobalDeviceRegistry extends PersistentState {
     }
 
     public TerminalEntry registerTerminal(TerminalRef ref) {
+        String slug;
+        do {
+            slug = SlugToken.generate();
+        } while (slugByTerminal.containsValue(slug));
+        return registerTerminal(ref, slug);
+    }
+
+    private TerminalEntry registerTerminal(TerminalRef ref, String slug) {
         Objects.requireNonNull(ref, "ref");
         requireAvailable(ref);
+        String validatedSlug = requireSlug(slug);
+        if (slugByTerminal.containsValue(validatedSlug)) {
+            throw new IllegalArgumentException("Duplicate terminal slug: " + validatedSlug);
+        }
         TerminalEntry entry = new TerminalEntry(ref);
         terminals.put(ref.deviceId(), entry);
         index(ref);
         cameraIdsByTerminal.put(ref.deviceId(), new LinkedHashSet<>());
         screenIdsByTerminal.put(ref.deviceId(), new LinkedHashSet<>());
+        slugByTerminal.put(ref.deviceId(), validatedSlug);
         markDirty();
         return entry;
     }
@@ -145,6 +160,18 @@ public final class GlobalDeviceRegistry extends PersistentState {
         return Set.copyOf(terminals.keySet());
     }
 
+    public String slug(UUID terminalId) {
+        requireTerminal(terminalId);
+        return slugByTerminal.get(terminalId);
+    }
+
+    public Optional<TerminalEntry> terminalBySlug(String slug) {
+        return slugByTerminal.entrySet().stream()
+                .filter(entry -> entry.getValue().equals(slug))
+                .findFirst()
+                .flatMap(entry -> terminal(entry.getKey()));
+    }
+
     public int deviceCount() {
         return devicesById.size();
     }
@@ -154,6 +181,57 @@ public final class GlobalDeviceRegistry extends PersistentState {
         validateAssignment(current.terminalId(), cameraId);
         screens.put(screenId, new ScreenEntry(current.ref(), current.terminalId(),
                 current.name(), cameraId));
+        markDirty();
+    }
+
+    public void relinkCamera(UUID cameraId, UUID terminalId) {
+        requireTerminal(terminalId);
+        CameraEntry current = cameras.get(cameraId);
+        if (current == null) {
+            throw new IllegalArgumentException("Unknown camera UUID: " + cameraId);
+        }
+        if (current.terminalId().equals(terminalId)) {
+            return;
+        }
+        cameraIdsByTerminal.get(current.terminalId()).remove(cameraId);
+        cameraIdsByTerminal.get(terminalId).add(cameraId);
+        cameras.put(cameraId, new CameraEntry(current.ref(), terminalId, current.name()));
+        for (Map.Entry<UUID, ScreenEntry> indexed : new ArrayList<>(screens.entrySet())) {
+            ScreenEntry screen = indexed.getValue();
+            if (screen.assignedCameraId().filter(cameraId::equals).isPresent()) {
+                screens.put(indexed.getKey(), new ScreenEntry(screen.ref(), screen.terminalId(),
+                        screen.name(), Optional.empty()));
+            }
+        }
+        markDirty();
+    }
+
+    public void relinkScreen(UUID screenId, UUID terminalId) {
+        requireTerminal(terminalId);
+        ScreenEntry current = requireScreen(screenId);
+        if (current.terminalId().equals(terminalId)) {
+            return;
+        }
+        screenIdsByTerminal.get(current.terminalId()).remove(screenId);
+        screenIdsByTerminal.get(terminalId).add(screenId);
+        screens.put(screenId, new ScreenEntry(current.ref(), terminalId, current.name(),
+                Optional.empty()));
+        markDirty();
+    }
+
+    public void renameCamera(UUID cameraId, String name) {
+        CameraEntry current = cameras.get(cameraId);
+        if (current == null) {
+            throw new IllegalArgumentException("Unknown camera UUID: " + cameraId);
+        }
+        cameras.put(cameraId, new CameraEntry(current.ref(), current.terminalId(), name));
+        markDirty();
+    }
+
+    public void renameScreen(UUID screenId, String name) {
+        ScreenEntry current = requireScreen(screenId);
+        screens.put(screenId, new ScreenEntry(current.ref(), current.terminalId(), name,
+                current.assignedCameraId()));
         markDirty();
     }
 
@@ -198,6 +276,7 @@ public final class GlobalDeviceRegistry extends PersistentState {
         terminals.remove(terminalId);
         cameraIdsByTerminal.remove(terminalId);
         screenIdsByTerminal.remove(terminalId);
+        slugByTerminal.remove(terminalId);
         unindex(terminal.ref());
         markDirty();
         return true;
@@ -211,6 +290,7 @@ public final class GlobalDeviceRegistry extends PersistentState {
         for (TerminalEntry entry : terminals.values()) {
             NbtCompound tag = new NbtCompound();
             tag.put("ref", entry.ref().toNbt());
+            tag.putString("slug", slug(entry.ref().deviceId()));
             terminalList.add(tag);
         }
         nbt.put("terminals", terminalList);
@@ -251,7 +331,8 @@ public final class GlobalDeviceRegistry extends PersistentState {
         NbtList terminalList = nbt.getList("terminals", NbtElement.COMPOUND_TYPE);
         for (int i = 0; i < terminalList.size(); i++) {
             NbtCompound tag = terminalList.getCompound(i);
-            registry.registerTerminal(TerminalRef.fromNbt(tag.getCompound("ref")));
+            registry.registerTerminal(TerminalRef.fromNbt(tag.getCompound("ref")),
+                    tag.getString("slug"));
         }
 
         NbtList cameraList = nbt.getList("cameras", NbtElement.COMPOUND_TYPE);
@@ -340,6 +421,14 @@ public final class GlobalDeviceRegistry extends PersistentState {
         if (normalized.isEmpty() || normalized.length() > MAX_NAME_LENGTH) {
             throw new IllegalArgumentException(
                     "Device name must contain 1 to " + MAX_NAME_LENGTH + " characters");
+        }
+        return normalized;
+    }
+
+    private static String requireSlug(String slug) {
+        String normalized = Objects.requireNonNull(slug, "slug").trim();
+        if (normalized.isEmpty()) {
+            throw new IllegalArgumentException("Terminal slug must not be empty");
         }
         return normalized;
     }

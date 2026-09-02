@@ -38,9 +38,11 @@ public class ICyouClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(FeedDataS2CPayload.ID, (payload, context) -> {
             MinecraftClient client = MinecraftClient.getInstance();
             client.execute(() -> {
-                if (client.world != null && client.world.getBlockEntity(
-                        payload.screenPos()) instanceof ScreenBlockEntity screen) {
-                    screen.updateClientFeed(payload.blips(), payload.camPos(),
+                if (client.world != null
+                        && client.world.getRegistryKey().equals(payload.screen().dimension())
+                        && client.world.getBlockEntity(payload.screen().position())
+                        instanceof ScreenBlockEntity screen) {
+                    screen.updateClientFeed(payload.blips(), payload.camera(),
                             payload.facingId(), payload.index(), payload.count());
                 }
             });

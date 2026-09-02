@@ -1,11 +1,14 @@
 package com.matissjurevics.icyou.registry;
 
 import com.matissjurevics.icyou.ICyouMod;
+import com.matissjurevics.icyou.device.CameraRef;
+import com.matissjurevics.icyou.device.ScreenRef;
+import com.matissjurevics.icyou.device.TerminalRef;
+import java.util.UUID;
 import net.minecraft.component.ComponentType;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
 
 /**
  * Item data components. Components are the 1.21 replacement for arbitrary
@@ -15,28 +18,28 @@ public final class ModDataComponentTypes {
 
     private ModDataComponentTypes() {}
 
-    /** Camera position currently carried by a Setup Remote. */
-    public static final ComponentType<BlockPos> LINKED_CAMERA = ComponentType.<BlockPos>builder()
-            .codec(BlockPos.CODEC)
-            .packetCodec(BlockPos.PACKET_CODEC)
+    /** Stable camera reference currently carried by a Setup Remote. */
+    public static final ComponentType<CameraRef> LINKED_CAMERA = ComponentType.<CameraRef>builder()
+            .codec(CameraRef.CODEC)
+            .packetCodec(CameraRef.PACKET_CODEC)
             .build();
 
-    /** Terminal position a Portable Screen is paired with. */
-    public static final ComponentType<BlockPos> LINKED_TERMINAL = ComponentType.<BlockPos>builder()
-            .codec(BlockPos.CODEC)
-            .packetCodec(BlockPos.PACKET_CODEC)
+    /** Stable terminal reference a Portable Screen is paired with. */
+    public static final ComponentType<TerminalRef> LINKED_TERMINAL = ComponentType.<TerminalRef>builder()
+            .codec(TerminalRef.CODEC)
+            .packetCodec(TerminalRef.PACKET_CODEC)
             .build();
 
-    /** Screen position currently carried by a Setup Remote. */
-    public static final ComponentType<BlockPos> LINKED_SCREEN = ComponentType.<BlockPos>builder()
-            .codec(BlockPos.CODEC)
-            .packetCodec(BlockPos.PACKET_CODEC)
+    /** Stable screen reference currently carried by a Setup Remote. */
+    public static final ComponentType<ScreenRef> LINKED_SCREEN = ComponentType.<ScreenRef>builder()
+            .codec(ScreenRef.CODEC)
+            .packetCodec(ScreenRef.PACKET_CODEC)
             .build();
 
     /** Wireless device id assigned to a paired Portable Screen. */
-    public static final ComponentType<Integer> WIRELESS_ID = ComponentType.<Integer>builder()
-            .codec(com.mojang.serialization.Codec.INT)
-            .packetCodec(net.minecraft.network.codec.PacketCodecs.VAR_INT)
+    public static final ComponentType<UUID> WIRELESS_ID = ComponentType.<UUID>builder()
+            .codec(net.minecraft.util.Uuids.CODEC)
+            .packetCodec(net.minecraft.util.Uuids.PACKET_CODEC)
             .build();
 
     public static void register() {

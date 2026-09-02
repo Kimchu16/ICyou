@@ -2,8 +2,11 @@ package com.matissjurevics.icyou.client.gui;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 import com.matissjurevics.icyou.client.ClientDeviceCache;
+import com.matissjurevics.icyou.device.TerminalRef;
 import com.matissjurevics.icyou.network.DeviceActionC2SPayload;
 import com.matissjurevics.icyou.network.DeviceSnapshotS2CPayload;
 import com.matissjurevics.icyou.network.DeviceSubscribeC2SPayload;
@@ -13,7 +16,6 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.Text;
-import net.minecraft.util.math.BlockPos;
 
 /**
  * Terminal management GUI: three stacked sections (cameras / screens /
@@ -28,15 +30,15 @@ public class TerminalGuiScreen extends Screen {
         }
     }
 
-    private final BlockPos terminal;
+    private final TerminalRef terminal;
 
     private int camPage, scrPage, wrlPage;
-    private int dragCamId = -1;
+    private UUID dragCamId;
     private int dragX, dragY;
 
     // inline rename state
     private int editingType = -1;
-    private int editingId = -1;
+    private UUID editingId;
     private TextFieldWidget renameField;
 
     // hitboxes rebuilt each render
@@ -153,8 +155,9 @@ public class TerminalGuiScreen extends Screen {
                 snap, 2, mouseX, mouseY);
 
         // dragged camera label
-        if (dragCamId >= 0) {
-            String label = snap.cameras().stream().filter(c -> c.id() == dragCamId)
+        if (dragCamId != null) {
+            String label = snap.cameras().stream()
+                    .filter(c -> c.ref().deviceId().equals(dragCamId))
                     .map(c -> c.name()).findFirst().orElse("?");
             int w = textRenderer.getWidth(label);
             context.fill(dragX - 2, dragY - 2, dragX + w + 4, dragY + 10, 0xE0202027);
@@ -212,15 +215,15 @@ public class TerminalGuiScreen extends Screen {
             String name;
             String extra;
             boolean online = true;
-            int id;
+            UUID id;
             if (type == 0) {
                 var c = snap.cameras().get(idx);
-                name = c.name(); id = c.id();
+                name = c.name(); id = c.ref().deviceId();
                 extra = c.online() ? "" : "  [OFFLINE]";
                 online = c.online();
             } else if (type == 1) {
                 var s = snap.screens().get(idx);
-                name = s.name(); id = s.id();
+                name = s.name(); id = s.ref().deviceId();
                 extra = "  \u2192 " + s.camName() + (s.online() ? "" : " (off)");
                 online = s.online();
             } else {
@@ -258,7 +261,7 @@ public class TerminalGuiScreen extends Screen {
             storeBtnRects(type, rename, remove);
 
             // park the rename widget over the row being edited
-            if (type == editingType && id == editingId && renameField != null) {
+            if (type == editingType && id.equals(editingId) && renameField != null) {
                 renameField.setX(rowX);
                 renameField.setY(y - 2);
                 renameField.setWidth(rowW);
@@ -329,7 +332,7 @@ public class TerminalGuiScreen extends Screen {
                 var cams = ClientDeviceCache.get().cameras();
                 int global = camPage * ROWS + ci;
                 if (global < cams.size()) {
-                    dragCamId = cams.get(global).id();
+                    dragCamId = cams.get(global).ref().deviceId();
                     dragX = mx;
                     dragY = my;
                     return true;
@@ -341,7 +344,7 @@ public class TerminalGuiScreen extends Screen {
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        if (button == 0 && dragCamId >= 0) {
+        if (button == 0 && dragCamId != null) {
             int si = hit(scrRowRects, (int) mouseX, (int) mouseY);
             if (si >= 0 && ClientDeviceCache.get() != null) {
                 var screens = ClientDeviceCache.get().screens();
@@ -350,10 +353,10 @@ public class TerminalGuiScreen extends Screen {
                     ClientPlayNetworking.send(new DeviceActionC2SPayload(terminal,
                             DeviceActionC2SPayload.ACTION_ASSIGN,
                             DeviceActionC2SPayload.TYPE_SCREEN,
-                            screens.get(global).id(), dragCamId, ""));
+                            screens.get(global).ref().deviceId(), Optional.of(dragCamId), ""));
                 }
             }
-            dragCamId = -1;
+            dragCamId = null;
             return true;
         }
         return super.mouseReleased(mouseX, mouseY, button);
@@ -409,18 +412,18 @@ public class TerminalGuiScreen extends Screen {
             return;
         }
         String name = null;
-        int id = -1;
+        UUID id = null;
         if (type == 0) {
             int g = camPage * ROWS + rowIdx;
-            if (g < snap.cameras().size()) { name = snap.cameras().get(g).name(); id = snap.cameras().get(g).id(); }
+            if (g < snap.cameras().size()) { name = snap.cameras().get(g).name(); id = snap.cameras().get(g).ref().deviceId(); }
         } else if (type == 1) {
             int g = scrPage * ROWS + rowIdx;
-            if (g < snap.screens().size()) { name = snap.screens().get(g).name(); id = snap.screens().get(g).id(); }
+            if (g < snap.screens().size()) { name = snap.screens().get(g).name(); id = snap.screens().get(g).ref().deviceId(); }
         } else {
             int g = wrlPage * ROWS + rowIdx;
             if (g < snap.wireless().size()) { name = snap.wireless().get(g).name(); id = snap.wireless().get(g).id(); }
         }
-        if (id < 0) {
+        if (id == null) {
             return;
         }
         editingType = type;
@@ -432,17 +435,17 @@ public class TerminalGuiScreen extends Screen {
     }
 
     private void commitRename() {
-        if (editingType >= 0 && editingId >= 0 && renameField != null) {
+        if (editingType >= 0 && editingId != null && renameField != null) {
             ClientPlayNetworking.send(new DeviceActionC2SPayload(terminal,
                     DeviceActionC2SPayload.ACTION_RENAME, (byte) editingType,
-                    editingId, 0, renameField.getText()));
+                    editingId, Optional.empty(), renameField.getText()));
         }
         cancelRename();
     }
 
     private void cancelRename() {
         editingType = -1;
-        editingId = -1;
+        editingId = null;
         if (renameField != null) {
             renameField.setVisible(false);
             renameField.setFocused(false);
@@ -454,20 +457,21 @@ public class TerminalGuiScreen extends Screen {
         if (snap == null) {
             return;
         }
-        int id = -1;
+        UUID id = null;
         if (type == 0) {
             int g = camPage * ROWS + rowIdx;
-            if (g < snap.cameras().size()) { id = snap.cameras().get(g).id(); }
+            if (g < snap.cameras().size()) { id = snap.cameras().get(g).ref().deviceId(); }
         } else if (type == 1) {
             int g = scrPage * ROWS + rowIdx;
-            if (g < snap.screens().size()) { id = snap.screens().get(g).id(); }
+            if (g < snap.screens().size()) { id = snap.screens().get(g).ref().deviceId(); }
         } else {
             int g = wrlPage * ROWS + rowIdx;
             if (g < snap.wireless().size()) { id = snap.wireless().get(g).id(); }
         }
-        if (id >= 0) {
+        if (id != null) {
             ClientPlayNetworking.send(new DeviceActionC2SPayload(terminal,
-                    DeviceActionC2SPayload.ACTION_REMOVE, (byte) type, id, 0, ""));
+                    DeviceActionC2SPayload.ACTION_REMOVE, (byte) type, id,
+                    Optional.empty(), ""));
         }
     }
 }

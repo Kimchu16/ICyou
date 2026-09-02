@@ -6,7 +6,7 @@ import com.matissjurevics.icyou.network.DeviceSubscriptions;
 import com.matissjurevics.icyou.network.DeviceSubscribeC2SPayload;
 import com.matissjurevics.icyou.network.EnterCameraViewS2CPayload;
 import com.matissjurevics.icyou.network.FeedDataS2CPayload;
-import com.matissjurevics.icyou.terminal.DeviceRegistry;
+import com.matissjurevics.icyou.device.GlobalDeviceRegistry;
 
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -34,29 +34,56 @@ public final class ModNetworking {
 
         // --- device mutations from the terminal GUI ---
         ServerPlayNetworking.registerGlobalReceiver(DeviceActionC2SPayload.ID, (payload, ctx) -> {
-            ServerWorld world = ctx.player().getServerWorld();
-            DeviceRegistry reg = DeviceRegistry.get(world);
-            boolean ok = switch (payload.action()) {
-                case DeviceActionC2SPayload.ACTION_ASSIGN ->
-                        reg.assign(payload.id(), payload.auxId());
-                case DeviceActionC2SPayload.ACTION_RENAME ->
-                        reg.rename(payload.targetType(), payload.id(), payload.name());
-                case DeviceActionC2SPayload.ACTION_REMOVE -> {
-                    switch (payload.targetType()) {
-                        case DeviceActionC2SPayload.TYPE_CAMERA ->
-                                reg.removeCameraById(payload.id());
-                        case DeviceActionC2SPayload.TYPE_SCREEN ->
-                                reg.removeScreenById(payload.id());
-                        case DeviceActionC2SPayload.TYPE_WIRELESS ->
-                                reg.removeWireless(payload.id());
-                        default -> { }
+            var server = ctx.player().getServer();
+            GlobalDeviceRegistry reg = GlobalDeviceRegistry.get(server);
+            boolean ok = false;
+            try {
+                var terminal = reg.terminal(payload.terminal().deviceId())
+                        .filter(entry -> entry.ref().equals(payload.terminal())).orElseThrow();
+                ok = switch (payload.action()) {
+                    case DeviceActionC2SPayload.ACTION_ASSIGN -> {
+                        var screen = reg.screen(payload.id()).orElseThrow();
+                        if (!screen.terminalId().equals(terminal.ref().deviceId())) {
+                            yield false;
+                        }
+                        reg.assignCamera(payload.id(), payload.auxId());
+                        yield true;
                     }
-                    yield true;
-                }
-                default -> false;
-            };
+                    case DeviceActionC2SPayload.ACTION_RENAME -> {
+                        if (payload.targetType() == DeviceActionC2SPayload.TYPE_CAMERA
+                                && reg.camera(payload.id()).filter(entry -> entry.terminalId()
+                                .equals(terminal.ref().deviceId())).isPresent()) {
+                            reg.renameCamera(payload.id(), payload.name());
+                            yield true;
+                        }
+                        if (payload.targetType() == DeviceActionC2SPayload.TYPE_SCREEN
+                                && reg.screen(payload.id()).filter(entry -> entry.terminalId()
+                                .equals(terminal.ref().deviceId())).isPresent()) {
+                            reg.renameScreen(payload.id(), payload.name());
+                            yield true;
+                        }
+                        yield false;
+                    }
+                    case DeviceActionC2SPayload.ACTION_REMOVE -> {
+                        if (payload.targetType() == DeviceActionC2SPayload.TYPE_CAMERA
+                                && reg.camera(payload.id()).filter(entry -> entry.terminalId()
+                                .equals(terminal.ref().deviceId())).isPresent()) {
+                            yield reg.removeCamera(payload.id());
+                        }
+                        if (payload.targetType() == DeviceActionC2SPayload.TYPE_SCREEN
+                                && reg.screen(payload.id()).filter(entry -> entry.terminalId()
+                                .equals(terminal.ref().deviceId())).isPresent()) {
+                            yield reg.removeScreen(payload.id());
+                        }
+                        yield false;
+                    }
+                    default -> false;
+                };
+            } catch (IllegalArgumentException | java.util.NoSuchElementException ignored) {
+                // Invalid or stale client reference; ignore the mutation.
+            }
             if (ok) {
-                DeviceSubscriptions.broadcast(world, payload.terminal());
+                DeviceSubscriptions.broadcast(server, payload.terminal().deviceId());
             }
         });
 
@@ -64,12 +91,18 @@ public final class ModNetworking {
         ServerPlayNetworking.registerGlobalReceiver(DeviceSubscribeC2SPayload.ID,
                 (payload, ctx) -> {
                     var player = ctx.player();
+                    var registry = GlobalDeviceRegistry.get(player.getServer());
+                    var terminal = registry.terminal(payload.terminal().deviceId())
+                            .filter(entry -> entry.ref().equals(payload.terminal()));
+                    if (terminal.isEmpty()) {
+                        return;
+                    }
                     if (payload.subscribe()) {
-                        DeviceSubscriptions.subscribe(payload.terminal(), player.getUuid());
+                        DeviceSubscriptions.subscribe(payload.terminal().deviceId(), player.getUuid());
                         ServerPlayNetworking.send(player, DeviceSubscriptions.buildSnapshot(
-                                player.getServerWorld(), payload.terminal(), false));
+                                player.getServer(), payload.terminal(), false));
                     } else {
-                        DeviceSubscriptions.unsubscribe(payload.terminal(), player.getUuid());
+                        DeviceSubscriptions.unsubscribe(payload.terminal().deviceId(), player.getUuid());
                     }
                 });
 

@@ -1,9 +1,12 @@
 package com.matissjurevics.icyou.item;
 
 import com.matissjurevics.icyou.client.hud.WirelessHud;
+import com.matissjurevics.icyou.device.GlobalDeviceRegistry;
+import com.matissjurevics.icyou.device.TerminalRef;
 import com.matissjurevics.icyou.registry.ModDataComponentTypes;
 import com.matissjurevics.icyou.terminal.CameraTerminalBlock;
-import com.matissjurevics.icyou.terminal.DeviceRegistry;
+import com.matissjurevics.icyou.terminal.CameraTerminalBlockEntity;
+import java.util.UUID;
 
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
@@ -36,12 +39,16 @@ public class PortableScreenItem extends Item {
 
         if (world.getBlockState(pos).getBlock() instanceof CameraTerminalBlock) {
             if (!world.isClient) {
-                var reg = DeviceRegistry.get((ServerWorld) world);
-                var dev = reg.addWireless(pos);
-                stack.set(ModDataComponentTypes.LINKED_TERMINAL, pos.toImmutable());
-                stack.set(ModDataComponentTypes.WIRELESS_ID, dev.id());
+                ServerWorld serverWorld = (ServerWorld) world;
+                if (!(world.getBlockEntity(pos) instanceof CameraTerminalBlockEntity terminal)) {
+                    return ActionResult.FAIL;
+                }
+                TerminalRef terminalRef = terminal.initialize(serverWorld);
+                UUID wirelessId = UUID.randomUUID();
+                stack.set(ModDataComponentTypes.LINKED_TERMINAL, terminalRef);
+                stack.set(ModDataComponentTypes.WIRELESS_ID, wirelessId);
                 if (player != null) {
-                    player.sendMessage(Text.literal("Paired as " + dev.name()), true);
+                    player.sendMessage(Text.literal("Portable screen paired"), true);
                 }
             }
             return ActionResult.SUCCESS;
@@ -54,7 +61,7 @@ public class PortableScreenItem extends Item {
         ItemStack stack = user.getStackInHand(hand);
 
         if (world.isClient) {
-            BlockPos terminal = stack.get(ModDataComponentTypes.LINKED_TERMINAL);
+            TerminalRef terminal = stack.get(ModDataComponentTypes.LINKED_TERMINAL);
             if (terminal != null) {
                 WirelessHud.toggle(terminal);
                 return TypedActionResult.success(stack, true);
@@ -63,10 +70,16 @@ public class PortableScreenItem extends Item {
         }
 
         // Server side: validate pairing.
-        BlockPos terminal = stack.get(ModDataComponentTypes.LINKED_TERMINAL);
+        TerminalRef terminal = stack.get(ModDataComponentTypes.LINKED_TERMINAL);
         if (terminal == null) {
             user.sendMessage(Text.literal(
                     "Not paired — sneak-use this screen on a camera terminal first."), false);
+            return TypedActionResult.fail(stack);
+        }
+        if (world instanceof ServerWorld serverWorld
+                && GlobalDeviceRegistry.get(serverWorld.getServer())
+                .terminal(terminal.deviceId()).filter(entry -> entry.ref().equals(terminal)).isEmpty()) {
+            user.sendMessage(Text.literal("Paired terminal is unavailable."), false);
             return TypedActionResult.fail(stack);
         }
         return TypedActionResult.success(stack, false);

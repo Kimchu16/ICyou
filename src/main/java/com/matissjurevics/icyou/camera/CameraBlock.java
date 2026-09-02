@@ -12,7 +12,9 @@ import net.minecraft.util.BlockRotation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.shape.VoxelShape;
-import com.matissjurevics.icyou.terminal.DeviceRegistry;
+import com.matissjurevics.icyou.device.CameraRef;
+import com.matissjurevics.icyou.device.DeviceLocation;
+import com.matissjurevics.icyou.device.GlobalDeviceRegistry;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.world.BlockView;
@@ -60,7 +62,11 @@ public class CameraBlock extends Block {
     @Override
     public BlockState onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
         if (!world.isClient) {
-            DeviceRegistry.get((ServerWorld) world).removeCamera(pos);
+            ServerWorld serverWorld = (ServerWorld) world;
+            GlobalDeviceRegistry registry = GlobalDeviceRegistry.get(serverWorld.getServer());
+            registry.deviceAt(new DeviceLocation(serverWorld.getRegistryKey(), pos))
+                    .filter(CameraRef.class::isInstance).map(CameraRef.class::cast)
+                    .ifPresent(ref -> registry.removeCamera(ref.deviceId()));
         }
         return super.onBreak(world, pos, state, player);
     }
