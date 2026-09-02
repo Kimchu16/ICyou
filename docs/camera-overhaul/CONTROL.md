@@ -22,7 +22,9 @@ it in the commit that changes a roadmap item's status or contract.
 - Baseline before overhaul edits: `gradlew build` passed on 2026-09-02 with no
   test sources. Gradle/Fabric: Loom 1.7.4, Gradle 8.9, Java 21, Minecraft 1.21.1.
 - PR 0 verification: `gradlew test build` passed on 2026-09-02 (three tests).
-- Current work: PR 1. Next dependency: PR 2 after PR 1 passes and is committed.
+- PR 1 verification: `gradlew clean test build` passed on 2026-09-02; eight
+  tests total (five device-reference tests and three contract tests).
+- Current work: stopped after PR 1. Next dependency: PR 2 server-global registry.
 - Existing runtime consumers still use position/int identity; conversion is
   intentionally deferred to PR 3.
 
@@ -33,8 +35,8 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | PR | Responsibility | Status | Depends on |
 |---:|---|---|---|
 | 0 | Overhaul contracts and test scaffold | DONE | — |
-| 1 | Dimension-aware device identity | ACTIVE | 0 |
-| 2 | Server-global registry | BLOCKED | 1 |
+| 1 | Dimension-aware device identity | DONE | 0 |
+| 2 | Server-global registry | READY | 1 |
 | 3 | Device integration | BLOCKED | 2 |
 | 4 | Migration, backup, ambiguity report | BLOCKED | 3 |
 | 5 | Ownership and tombstones | BLOCKED | 4 |
@@ -73,15 +75,15 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 
 ## PR 1 acceptance criteria
 
-- [ ] Immutable `CameraRef`, `TerminalRef`, and `ScreenRef` expose stable UUID,
+- [x] Immutable `CameraRef`, `TerminalRef`, and `ScreenRef` expose stable UUID,
   dimension key, and immutable block position.
-- [ ] Construction rejects null fields and preserves value semantics.
-- [ ] Each reference has explicit save and packet serialization contracts using
+- [x] Construction rejects null fields and preserves value semantics.
+- [x] Each reference has explicit save and packet serialization contracts using
   schema/protocol version 1 and rejects unknown versions.
-- [ ] Focused round-trip and invalid-version tests pass.
-- [ ] No 0.2.0 registry, block entity, item, cache, or payload consumer is
+- [x] Focused round-trip and invalid-version tests pass.
+- [x] No 0.2.0 registry, block entity, item, cache, or payload consumer is
   migrated in this PR.
-- [ ] PR 1 is recorded as a distinct local commit and control state names PR 2
+- [x] PR 1 is recorded as a distinct local commit and control state names PR 2
   as the next dependency.
 
 ## Version milestones
