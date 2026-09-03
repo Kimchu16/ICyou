@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Optional;
 
 import com.matissjurevics.icyou.demand.ServerDemandLifecycle;
 import com.matissjurevics.icyou.device.CameraRef;
@@ -50,6 +51,10 @@ public final class ServerChunkLeaseLifecycle {
                 }
             }
         });
+    }
+
+    public static synchronized Optional<ChunkLeaseManager> leases(MinecraftServer server) {
+        return Optional.ofNullable(ACTIVE.get(server));
     }
 
     private static void tick(MinecraftServer server) {

@@ -79,6 +79,10 @@ public final class ChunkLeaseManager {
         return leasesByCamera.getOrDefault(cameraId, Set.of());
     }
 
+    public synchronized Set<LeaseLocation> leasedLocations() {
+        return Set.copyOf(referenceCounts.keySet());
+    }
+
     public synchronized void clear() {
         leasesByCamera.forEach((cameraId, locations) ->
                 locations.forEach(this::release));
