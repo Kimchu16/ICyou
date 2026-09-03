@@ -80,8 +80,9 @@ it in the commit that changes a roadmap item's status or contract.
   remote child branches were deleted.
 - PR 13 verification: `gradlew clean test build` passed locally with 68 tests;
   focused tests cover every message, future versions, bounds, and immutability.
-- Current work: PR 13 render protocol is active on
-  `feature/cam-13-render-protocol`.
+- PR 13 child PR #21 CI passed and was squash-merged as `a81c2d2`; its local and
+  remote child branches were deleted.
+- Current work: stopped after PR 13. Next dependency: PR 14 render authentication.
 
 ## Roadmap and dependency status
 
@@ -102,8 +103,8 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 10 | Unified demand manager | DONE | 9, 3 |
 | 11 | Chunk leases | DONE | 10 |
 | 12 | Supplemental random ticks | DONE | 11 |
-| 13 | Render protocol | ACTIVE | 1, 10 |
-| 14 | Render authentication | BLOCKED | 13, 8 |
+| 13 | Render protocol | DONE | 1, 10 |
+| 14 | Render authentication | READY | 13, 8 |
 | 15 | Render scheduler | BLOCKED | 11, 13, 14 |
 | 16 | Render agent | BLOCKED | 15 |
 | 17 | Scene snapshots | BLOCKED | 15 |
@@ -355,7 +356,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   revision rules, cancellation reasons, media bits, and same-dimension boundary.
 - [x] Focused tests round-trip every message and reject malformed or future input.
 - [x] `gradlew clean test build` passes after the full PR 13 change (68 tests).
-- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
+- [x] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
