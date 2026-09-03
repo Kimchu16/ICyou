@@ -78,7 +78,10 @@ it in the commit that changes a roadmap item's status or contract.
   focused tests cover vanilla deduplication, dimensions, and unloaded leases.
 - PR 12 child PR #20 CI passed and was squash-merged as `f349f46`; its local and
   remote child branches were deleted.
-- Current work: stopped after PR 12. Next dependency: PR 13 render protocol.
+- PR 13 verification: `gradlew clean test build` passed locally with 68 tests;
+  focused tests cover every message, future versions, bounds, and immutability.
+- Current work: PR 13 render protocol is active on
+  `feature/cam-13-render-protocol`.
 
 ## Roadmap and dependency status
 
@@ -99,7 +102,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 10 | Unified demand manager | DONE | 9, 3 |
 | 11 | Chunk leases | DONE | 10 |
 | 12 | Supplemental random ticks | DONE | 11 |
-| 13 | Render protocol | READY | 1, 10 |
+| 13 | Render protocol | ACTIVE | 1, 10 |
 | 14 | Render authentication | BLOCKED | 13, 8 |
 | 15 | Render scheduler | BLOCKED | 11, 13, 14 |
 | 16 | Render agent | BLOCKED | 15 |
@@ -332,6 +335,27 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   isolation, and not-yet-loaded leases.
 - [x] `gradlew clean test build` passes after the full PR 12 change (62 tests).
 - [x] Child PR CI passes and the PR is squash-merged into the integration branch.
+
+## PR 13 acceptance criteria
+
+- [x] Render control has its own explicit v1 contract and rejects unknown versions
+  and message kinds instead of silently reinterpreting them.
+- [x] Direction-specific envelopes cover agent capabilities, challenge/proof/result
+  authentication, job assignment, status, and cancellation.
+- [x] Authentication messages carry credential/challenge IDs and fixed-size proof
+  bytes, never a plaintext render-agent secret.
+- [x] Assignments carry distinct job UUIDs, monotonic revisions, immutable camera
+  references, and the fixed 854x480 at 10 FPS v1 video contract.
+- [x] Capability masks, capacities, proofs, revisions, result/session invariants,
+  status details, video fields, enums, and mutable byte arrays are validated or
+  defensively copied.
+- [x] Both payload codecs are registered without adding authentication, scheduling,
+  or client execution handlers ahead of PRs 14–16.
+- [x] `RENDER_PROTOCOL.md` documents the handshake, canonical proof input, job
+  revision rules, cancellation reasons, media bits, and same-dimension boundary.
+- [x] Focused tests round-trip every message and reject malformed or future input.
+- [x] `gradlew clean test build` passes after the full PR 13 change (68 tests).
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
