@@ -72,7 +72,10 @@ it in the commit that changes a roadmap item's status or contract.
 - PR 11 verification: `gradlew clean test build` passed locally with 58 tests;
   focused tests cover 3x3 areas, shared references, movement, retention, and
   cleanup.
-- Current work: PR 11 chunk leases are active on `feature/cam-11-chunk-leases`.
+- PR 11 child PR #19 CI passed and was squash-merged as `50c7cb5`; its local and
+  remote child branches were deleted.
+- Current work: stopped after PR 11. Next dependency: PR 12 supplemental random
+  ticks.
 
 ## Roadmap and dependency status
 
@@ -91,8 +94,8 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 8 | Terminal authentication | DONE | 5, 7 |
 | 9 | Web demand | DONE | 8 |
 | 10 | Unified demand manager | DONE | 9, 3 |
-| 11 | Chunk leases | ACTIVE | 10 |
-| 12 | Supplemental random ticks | BLOCKED | 11 |
+| 11 | Chunk leases | DONE | 10 |
+| 12 | Supplemental random ticks | READY | 11 |
 | 13 | Render protocol | BLOCKED | 1, 10 |
 | 14 | Render authentication | BLOCKED | 13, 8 |
 | 15 | Render scheduler | BLOCKED | 11, 13, 14 |
@@ -308,7 +311,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 - [x] Focused tests cover the 3x3 boundary, overlaps, movement, inactivity,
   retention, and deterministic cleanup.
 - [x] `gradlew clean test build` passes after the full PR 11 change (58 tests).
-- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
+- [x] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
