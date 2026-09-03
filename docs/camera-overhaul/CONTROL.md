@@ -82,7 +82,11 @@ it in the commit that changes a roadmap item's status or contract.
   focused tests cover every message, future versions, bounds, and immutability.
 - PR 13 child PR #21 CI passed and was squash-merged as `a81c2d2`; its local and
   remote child branches were deleted.
-- Current work: stopped after PR 13. Next dependency: PR 14 render authentication.
+- PR 14 verification: `gradlew clean test build` passed locally with 77 tests;
+  focused tests cover UUID and secret checks, expiry, replay, persistence,
+  revocation, reauthentication, and disconnect cleanup.
+- Current work: PR 14 render authentication is active on
+  `feature/cam-14-render-auth`.
 
 ## Roadmap and dependency status
 
@@ -104,7 +108,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 11 | Chunk leases | DONE | 10 |
 | 12 | Supplemental random ticks | DONE | 11 |
 | 13 | Render protocol | DONE | 1, 10 |
-| 14 | Render authentication | READY | 13, 8 |
+| 14 | Render authentication | ACTIVE | 13, 8 |
 | 15 | Render scheduler | BLOCKED | 11, 13, 14 |
 | 16 | Render agent | BLOCKED | 15 |
 | 17 | Scene snapshots | BLOCKED | 15 |
@@ -357,6 +361,31 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 - [x] Focused tests round-trip every message and reject malformed or future input.
 - [x] `gradlew clean test build` passes after the full PR 13 change (68 tests).
 - [x] Child PR CI passes and the PR is squash-merged into the integration branch.
+
+## PR 14 acceptance criteria
+
+- [x] Operator-only commands issue one 256-bit render-agent secret for an explicit
+  Minecraft UUID, revoke one credential, or revoke all credentials for that UUID.
+- [x] Tokens are shown only when issued; persistent state stores the credential
+  UUID, allowlisted Minecraft UUID, SHA-256-derived key, and creation time, never
+  the raw secret or token.
+- [x] Every hello receives a fresh 32-byte challenge with the same response shape;
+  challenges expire after 15 seconds and the first proof attempt consumes them.
+- [x] Proof verification binds protocol version, challenge UUID, nonce, and the
+  connecting Minecraft UUID and uses a constant-time HMAC comparison.
+- [x] Successful sessions are connection-local and transient, force spectator mode,
+  and feed PR 10's render-agent predicate so agents create neither screen demand
+  nor genuine-player presence.
+- [x] Reauthentication, disconnect, shutdown, and credential revocation remove
+  sessions; revocation disconnects affected online agents immediately.
+- [x] Job-status messages remain inert until authenticated scheduling is added in
+  PR 15.
+- [x] `RENDER_AUTHENTICATION.md` documents commands, storage, challenge lifetime,
+  session behavior, revocation, and demand exclusion.
+- [x] Focused tests cover UUID and secret matching, denial, expiry, replay,
+  reauthentication, persistence, malformed tokens, revocation, and disconnect.
+- [x] `gradlew clean test build` passes after the full PR 14 change (77 tests).
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
