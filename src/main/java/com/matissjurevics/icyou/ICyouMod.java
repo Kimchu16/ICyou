@@ -5,6 +5,7 @@ import java.time.Instant;
 import com.matissjurevics.icyou.device.LegacyDeviceMigration;
 import com.matissjurevics.icyou.demand.ServerDemandLifecycle;
 import com.matissjurevics.icyou.feed.FeedManager;
+import com.matissjurevics.icyou.lease.ServerChunkLeaseLifecycle;
 import com.matissjurevics.icyou.registry.ModBlockEntities;
 import com.matissjurevics.icyou.registry.ModBlocks;
 import com.matissjurevics.icyou.registry.ModDataComponentTypes;
@@ -47,6 +48,7 @@ public class ICyouMod implements ModInitializer {
         });
         ServerWebLifecycle.register();
         ServerDemandLifecycle.register();
+        ServerChunkLeaseLifecycle.register();
         TerminalAuthCommands.register();
 
         LOGGER.info("ICyou has been initialized!");
