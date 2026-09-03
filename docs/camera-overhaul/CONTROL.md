@@ -76,8 +76,9 @@ it in the commit that changes a roadmap item's status or contract.
   remote child branches were deleted.
 - PR 12 verification: `gradlew clean test build` passed locally with 62 tests;
   focused tests cover vanilla deduplication, dimensions, and unloaded leases.
-- Current work: PR 12 supplemental random ticks are active on
-  `feature/cam-12-supplemental-ticks`.
+- PR 12 child PR #20 CI passed and was squash-merged as `f349f46`; its local and
+  remote child branches were deleted.
+- Current work: stopped after PR 12. Next dependency: PR 13 render protocol.
 
 ## Roadmap and dependency status
 
@@ -97,8 +98,8 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 9 | Web demand | DONE | 8 |
 | 10 | Unified demand manager | DONE | 9, 3 |
 | 11 | Chunk leases | DONE | 10 |
-| 12 | Supplemental random ticks | ACTIVE | 11 |
-| 13 | Render protocol | BLOCKED | 1, 10 |
+| 12 | Supplemental random ticks | DONE | 11 |
+| 13 | Render protocol | READY | 1, 10 |
 | 14 | Render authentication | BLOCKED | 13, 8 |
 | 15 | Render scheduler | BLOCKED | 11, 13, 14 |
 | 16 | Render agent | BLOCKED | 15 |
@@ -330,7 +331,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 - [x] Focused tests cover missing vanilla ticks, duplicate prevention, dimension
   isolation, and not-yet-loaded leases.
 - [x] `gradlew clean test build` passes after the full PR 12 change (62 tests).
-- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
+- [x] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
