@@ -74,8 +74,10 @@ it in the commit that changes a roadmap item's status or contract.
   cleanup.
 - PR 11 child PR #19 CI passed and was squash-merged as `50c7cb5`; its local and
   remote child branches were deleted.
-- Current work: stopped after PR 11. Next dependency: PR 12 supplemental random
-  ticks.
+- PR 12 verification: `gradlew clean test build` passed locally with 62 tests;
+  focused tests cover vanilla deduplication, dimensions, and unloaded leases.
+- Current work: PR 12 supplemental random ticks are active on
+  `feature/cam-12-supplemental-ticks`.
 
 ## Roadmap and dependency status
 
@@ -95,7 +97,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 9 | Web demand | DONE | 8 |
 | 10 | Unified demand manager | DONE | 9, 3 |
 | 11 | Chunk leases | DONE | 10 |
-| 12 | Supplemental random ticks | READY | 11 |
+| 12 | Supplemental random ticks | ACTIVE | 11 |
 | 13 | Render protocol | BLOCKED | 1, 10 |
 | 14 | Render authentication | BLOCKED | 13, 8 |
 | 15 | Render scheduler | BLOCKED | 11, 13, 14 |
@@ -312,6 +314,23 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   retention, and deterministic cleanup.
 - [x] `gradlew clean test build` passes after the full PR 11 change (58 tests).
 - [x] Child PR CI passes and the PR is squash-merged into the integration branch.
+
+## PR 12 acceptance criteria
+
+- [x] A common-server hook records every chunk that vanilla already sends through
+  `ServerWorld.tickChunk` during the current world tick.
+- [x] Only loaded PR 11 lease locations in the matching dimension that were not
+  already ticked by vanilla receive supplemental processing.
+- [x] Supplemental processing follows the world's `randomTickSpeed`, skips frozen
+  or zero-speed worlds, and applies vanilla-style block and fluid random ticks.
+- [x] The supplemental path does not call chunk weather, lightning, inhabited-time,
+  special-spawner, or natural mob-spawning logic.
+- [x] Tick records are transient, consumed after each world tick, and cleared when
+  the logical server stops.
+- [x] Focused tests cover missing vanilla ticks, duplicate prevention, dimension
+  isolation, and not-yet-loaded leases.
+- [x] `gradlew clean test build` passes after the full PR 12 change (62 tests).
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 

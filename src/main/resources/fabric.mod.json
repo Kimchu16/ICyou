@@ -16,6 +16,7 @@
     "icon": "assets/icyou/icon.png",
     "environment": "*",
     "mixins": [
+        "icyou.mixins.json",
         "icyou.client-mixins.json"
     ],
     "entrypoints": {
