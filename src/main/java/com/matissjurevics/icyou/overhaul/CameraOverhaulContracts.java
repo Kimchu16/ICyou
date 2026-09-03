@@ -11,6 +11,7 @@ public final class CameraOverhaulContracts {
 
     public static final int SAVE_SCHEMA_VERSION = 1;
     public static final int DEVICE_NETWORK_PROTOCOL_VERSION = 1;
+    public static final int RENDER_PROTOCOL_VERSION = 1;
 
     public static final int MAX_REGISTERED_CAMERAS = 64;
     public static final int MAX_ACTIVE_CAMERAS = 4;
@@ -31,7 +32,8 @@ public final class CameraOverhaulContracts {
     }
 
     public static void validateLimits() {
-        if (SAVE_SCHEMA_VERSION < 1 || DEVICE_NETWORK_PROTOCOL_VERSION < 1) {
+        if (SAVE_SCHEMA_VERSION < 1 || DEVICE_NETWORK_PROTOCOL_VERSION < 1
+                || RENDER_PROTOCOL_VERSION < 1) {
             throw new IllegalStateException("Overhaul protocol versions must be positive");
         }
         if (MAX_ACTIVE_CAMERAS > MAX_REGISTERED_CAMERAS) {
