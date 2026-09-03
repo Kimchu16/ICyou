@@ -85,8 +85,10 @@ it in the commit that changes a roadmap item's status or contract.
 - PR 14 verification: `gradlew clean test build` passed locally with 77 tests;
   focused tests cover UUID and secret checks, expiry, replay, persistence,
   revocation, reauthentication, and disconnect cleanup.
-- Current work: PR 14 render authentication is active on
-  `feature/cam-14-render-auth`.
+- PR 14 child PR #22 CI passed and was squash-merged as `c5106c5`; its local and
+  remote child branches were deleted.
+- Current work: PR 15 render scheduling is active on
+  `feature/cam-15-render-scheduler`.
 
 ## Roadmap and dependency status
 
@@ -108,8 +110,8 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 11 | Chunk leases | DONE | 10 |
 | 12 | Supplemental random ticks | DONE | 11 |
 | 13 | Render protocol | DONE | 1, 10 |
-| 14 | Render authentication | ACTIVE | 13, 8 |
-| 15 | Render scheduler | BLOCKED | 11, 13, 14 |
+| 14 | Render authentication | DONE | 13, 8 |
+| 15 | Render scheduler | ACTIVE | 11, 13, 14 |
 | 16 | Render agent | BLOCKED | 15 |
 | 17 | Scene snapshots | BLOCKED | 15 |
 | 18 | Scene deltas | BLOCKED | 17 |
@@ -385,7 +387,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 - [x] Focused tests cover UUID and secret matching, denial, expiry, replay,
   reauthentication, persistence, malformed tokens, revocation, and disconnect.
 - [x] `gradlew clean test build` passes after the full PR 14 change (77 tests).
-- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
+- [x] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
