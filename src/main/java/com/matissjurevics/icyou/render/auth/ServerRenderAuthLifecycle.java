@@ -13,6 +13,7 @@ import com.matissjurevics.icyou.render.protocol.RenderControlS2CPayload;
 import com.matissjurevics.icyou.render.protocol.RenderProtocol.AgentHello;
 import com.matissjurevics.icyou.render.protocol.RenderProtocol.AuthProof;
 import com.matissjurevics.icyou.render.protocol.RenderProtocol.JobStatus;
+import com.matissjurevics.icyou.render.schedule.ServerRenderSchedulerLifecycle;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -114,9 +115,8 @@ public final class ServerRenderAuthLifecycle {
                     ServerPlayNetworking.send(player,
                             new RenderControlS2CPayload(completion.response()));
                 }
-                case JobStatus ignored -> {
-                    // PR 15 owns authenticated scheduler status handling.
-                }
+                case JobStatus status -> ServerRenderSchedulerLifecycle.handleStatus(
+                        player.getServer(), player.getUuid(), status);
             }
         });
     }

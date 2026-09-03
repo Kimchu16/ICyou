@@ -15,6 +15,7 @@ import com.matissjurevics.icyou.registry.ModItems;
 import com.matissjurevics.icyou.registry.ModNetworking;
 import com.matissjurevics.icyou.render.auth.RenderAgentCommands;
 import com.matissjurevics.icyou.render.auth.ServerRenderAuthLifecycle;
+import com.matissjurevics.icyou.render.schedule.ServerRenderSchedulerLifecycle;
 import com.matissjurevics.icyou.web.ServerWebLifecycle;
 import com.matissjurevics.icyou.web.auth.TerminalAuthCommands;
 import net.fabricmc.api.ModInitializer;
@@ -54,6 +55,7 @@ public class ICyouMod implements ModInitializer {
         ServerChunkLeaseLifecycle.register();
         SupplementalRandomTickLifecycle.register();
         ServerRenderAuthLifecycle.register();
+        ServerRenderSchedulerLifecycle.register();
         TerminalAuthCommands.register();
         RenderAgentCommands.register();
 

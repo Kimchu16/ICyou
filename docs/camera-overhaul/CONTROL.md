@@ -87,6 +87,9 @@ it in the commit that changes a roadmap item's status or contract.
   revocation, reauthentication, and disconnect cleanup.
 - PR 14 child PR #22 CI passed and was squash-merged as `c5106c5`; its local and
   remote child branches were deleted.
+- PR 15 verification: `gradlew clean test build` passed locally with 85 tests;
+  focused tests cover limits, dimensions, status authority, failure, disconnect,
+  movement, retention, slot reclamation, and shutdown.
 - Current work: PR 15 render scheduling is active on
   `feature/cam-15-render-scheduler`.
 
@@ -388,6 +391,30 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   reauthentication, persistence, malformed tokens, revocation, and disconnect.
 - [x] `gradlew clean test build` passes after the full PR 14 change (77 tests).
 - [x] Child PR CI passes and the PR is squash-merged into the integration branch.
+
+## PR 15 acceptance criteria
+
+- [x] The logical server assigns each activating camera to at most one
+  authenticated render-agent session.
+- [x] Scheduling is same-dimension and respects both advertised agent capacity
+  and the global four-active-camera ceiling.
+- [x] Stable jobs survive ordinary reconciliations and the 30-second retention
+  period; new demand can reclaim a retained slot when capacity is full.
+- [x] Job IDs are distinct from camera IDs, and every cancellation increments
+  the assignment revision with a stable reason.
+- [x] Only the assigned agent and authentication session may update a job, and
+  stale revisions or regressive status updates are ignored.
+- [x] Availability updates the demand lifecycle; failure, disconnect, session
+  replacement, dimension change, and camera movement make live demand
+  unavailable before later reassignment.
+- [x] A failed camera-agent pair is not retried during the same authenticated
+  session, preventing a failing node from receiving the same job every tick.
+- [x] `RENDER_SCHEDULING.md` documents assignment, retention, status, limits,
+  cancellation, and failure behavior.
+- [x] Focused tests cover limits, dimensions, stale status, availability,
+  failure, disconnect, movement, retention, and retained-slot reclamation.
+- [x] `gradlew clean test build` passes after the full PR 15 change (85 tests).
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
