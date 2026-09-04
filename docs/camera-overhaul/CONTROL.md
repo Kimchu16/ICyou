@@ -144,7 +144,9 @@ it in the commit that changes a roadmap item's status or contract.
 - PR 25 local verification: `gradlew clean test build` passes with 168 tests;
   focused tests cover counters, status validation, state classification, and
   short operator output.
-- Current work: PR 25 observability is active.
+- PR 25 child PR #33 CI passed and was squash-merged as `78fe443`; its local and
+  remote child branches were deleted.
+- Current work: PR 26 deployment tests is active.
 
 ## Roadmap and dependency status
 
@@ -177,8 +179,8 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 22 | Audio scene | DONE | 18, 19 |
 | 23 | WebRTC A/V | DONE | 21, 22 |
 | 24 | Admin limits | DONE | 10, 15, 21, 23 |
-| 25 | Observability | ACTIVE | 24 |
-| 26 | Deployment tests | BLOCKED | 4, 16, 23, 25 |
+| 25 | Observability | DONE | 24 |
+| 26 | Deployment tests | ACTIVE | 4, 16, 23, 25 |
 | 27 | Release | BLOCKED | 26 |
 
 ## PR 0 acceptance criteria
@@ -697,7 +699,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 - [x] `OBSERVABILITY.md` documents states, fields, counters, lifetime, logging,
   privacy boundaries, and the relationship to `/icyou limits`.
 - [x] `gradlew clean test build` passes after the full PR 25 change (168 tests).
-- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
+- [x] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
