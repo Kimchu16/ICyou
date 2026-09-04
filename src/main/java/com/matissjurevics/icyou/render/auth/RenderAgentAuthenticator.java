@@ -116,6 +116,10 @@ public final class RenderAgentAuthenticator {
         return Optional.ofNullable(sessionsByPlayer.get(minecraftId));
     }
 
+    public synchronized int sessionCount() {
+        return sessionsByPlayer.size();
+    }
+
     public synchronized Set<UUID> revokeCredential(UUID credentialId) {
         Set<UUID> affected = sessionsByPlayer.values().stream()
                 .filter(session -> session.credentialId().equals(credentialId))

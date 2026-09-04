@@ -20,6 +20,8 @@ import com.matissjurevics.icyou.render.schedule.ServerRenderSchedulerLifecycle;
 import com.matissjurevics.icyou.render.scene.SceneChangeJournal.Changes;
 import com.matissjurevics.icyou.render.scene.ServerSceneSnapshotLifecycle.SnapshotProgress;
 import com.matissjurevics.icyou.admin.ServerAdminLimitsLifecycle;
+import com.matissjurevics.icyou.observability.CameraEventCounters.Event;
+import com.matissjurevics.icyou.observability.ServerCameraObservability;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -138,6 +140,7 @@ public final class ServerSceneDeltaLifecycle {
                     sendDelta(server, world, player, assignment, state);
                 }
             } catch (RuntimeException error) {
+                ServerCameraObservability.record(server, Event.SCENE_FAILURE);
                 ICyouMod.LOGGER.error("Scene update failed for camera {}",
                         assignment.camera().deviceId(), error);
                 states.remove(key);

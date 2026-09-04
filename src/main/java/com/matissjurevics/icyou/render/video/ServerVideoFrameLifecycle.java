@@ -9,6 +9,8 @@ import com.matissjurevics.icyou.render.auth.ServerRenderAuthLifecycle;
 import com.matissjurevics.icyou.render.schedule.RenderScheduler.Assignment;
 import com.matissjurevics.icyou.render.schedule.ServerRenderSchedulerLifecycle;
 import com.matissjurevics.icyou.render.video.ServerVideoFrameStore.JobKey;
+import com.matissjurevics.icyou.observability.CameraEventCounters.Event;
+import com.matissjurevics.icyou.observability.ServerCameraObservability;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -55,10 +57,12 @@ public final class ServerVideoFrameLifecycle {
         var scheduler = ServerRenderSchedulerLifecycle.scheduler(server).orElse(null);
         ServerVideoFrameStore frames = store(server).orElse(null);
         if (authentication == null || scheduler == null || frames == null) {
+            ServerCameraObservability.record(server, Event.VIDEO_FRAME_REJECTION);
             return;
         }
         var session = authentication.session(player.getUuid()).orElse(null);
         if (session == null) {
+            ServerCameraObservability.record(server, Event.VIDEO_FRAME_REJECTION);
             return;
         }
         var incoming = payload.frame();
@@ -67,9 +71,12 @@ public final class ServerVideoFrameLifecycle {
                 .findFirst().orElse(null);
         if (!VideoFrameAuthorization.permits(player.getUuid(), session, assignment,
                 incoming)) {
+            ServerCameraObservability.record(server, Event.VIDEO_FRAME_REJECTION);
             return;
         }
-        frames.accept(incoming, System.currentTimeMillis());
+        if (!frames.accept(incoming, System.currentTimeMillis())) {
+            ServerCameraObservability.record(server, Event.VIDEO_FRAME_REJECTION);
+        }
     }
 
     private static void tick(MinecraftServer server) {

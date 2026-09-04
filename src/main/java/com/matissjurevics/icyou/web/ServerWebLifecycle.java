@@ -82,6 +82,10 @@ public final class ServerWebLifecycle {
         return ACTIVE.size();
     }
 
+    public static synchronized boolean isActive(MinecraftServer server) {
+        return ACTIVE.containsKey(server);
+    }
+
     public static synchronized Optional<WebViewerDemandRegistry> demand(
             MinecraftServer server) {
         ActiveWeb active = ACTIVE.get(server);

@@ -15,6 +15,8 @@ import com.matissjurevics.icyou.web.WebResponse;
 import com.matissjurevics.icyou.web.auth.TerminalCredentialStore.Scope;
 import com.matissjurevics.icyou.web.demand.WebViewerDemandRegistry;
 import com.matissjurevics.icyou.render.webrtc.ServerWebRtcSignalingLifecycle;
+import com.matissjurevics.icyou.observability.CameraEventCounters.Event;
+import com.matissjurevics.icyou.observability.ServerCameraObservability;
 
 import net.minecraft.server.MinecraftServer;
 
@@ -128,6 +130,9 @@ public final class TerminalWebController {
         if (parts.length == 4 && request.method().equals("POST")) {
             var session = demand.tryOpen(credential.credentialId(), credential.scope(),
                     terminalId, cameraId, now).orElse(null);
+            if (session == null && server != null) {
+                ServerCameraObservability.record(server, Event.VIEWER_LIMIT_REJECTION);
+            }
             return session == null
                     ? WebResponse.json(429, "{\"error\":\"viewer_limit_reached\"}")
                     : WebResponse.json(200,
@@ -172,7 +177,11 @@ public final class TerminalWebController {
                 peerId = ServerWebRtcSignalingLifecycle.open(
                         server, viewerSessionId, cameraId, offer);
             } catch (IllegalArgumentException error) {
+                ServerCameraObservability.record(server, Event.WEBRTC_OFFER_REJECTION);
                 return WebResponse.notFound();
+            }
+            if (peerId.isEmpty()) {
+                ServerCameraObservability.record(server, Event.WEBRTC_OFFER_REJECTION);
             }
             return peerId.map(id -> WebResponse.json(200,
                     "{\"peerId\":\"" + id + "\"}"))

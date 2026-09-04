@@ -141,6 +141,9 @@ it in the commit that changes a roadmap item's status or contract.
   retention, chunk areas, HTTP rejection, and per-agent WebRTC peer safety.
 - PR 24 child PR #32 CI passed and was squash-merged as `15d8f46`; its local and
   remote child branches were deleted.
+- PR 25 local verification: `gradlew clean test build` passes with 168 tests;
+  focused tests cover counters, status validation, state classification, and
+  short operator output.
 - Current work: PR 25 observability is active.
 
 ## Roadmap and dependency status
@@ -677,6 +680,24 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   relationships, enforcement, failure behavior, and restart requirements.
 - [x] `gradlew clean test build` passes after the full PR 24 change (164 tests).
 - [x] Child PR CI passes and the PR is squash-merged into the integration branch.
+
+## PR 25 acceptance criteria
+
+- [x] One immutable status snapshot reports current camera, feed, viewer,
+  render-agent, job, lease, frame, WebRTC, and web-listener counts.
+- [x] Status classification is deterministic: no work is idle, active or
+  retained work is running, and any unavailable demanded feed is degraded.
+- [x] `/icyou status` is read-only, requires operator permission level 2, and
+  presents the snapshot in five short lines.
+- [x] Viewer-limit, WebRTC-offer, video-frame, and scene failures have bounded
+  in-memory counters that reset with the logical server.
+- [x] State changes are sampled and logged without repeating an unchanged state.
+- [x] Status output and transition logs contain counts only; the public health
+  endpoint remains generic and exposes no operational metadata.
+- [x] `OBSERVABILITY.md` documents states, fields, counters, lifetime, logging,
+  privacy boundaries, and the relationship to `/icyou limits`.
+- [x] `gradlew clean test build` passes after the full PR 25 change (168 tests).
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
