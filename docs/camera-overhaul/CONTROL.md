@@ -126,7 +126,9 @@ it in the commit that changes a roadmap item's status or contract.
 - PR 22 verification: `gradlew clean test build` passed locally with 141 tests;
   focused tests cover codec fields and bounds, category/range filtering, agent
   exclusion, exact session capability, truncation, ordering, and cleanup.
-- Current work: PR 22 audio scene is active on `feature/cam-22-audio-scene`.
+- PR 22 child PR #30 CI passed and was squash-merged as `7ec6ae0`; its local and
+  remote child branches were deleted.
+- Current work: PR 23 WebRTC A/V is active.
 
 ## Roadmap and dependency status
 
@@ -156,8 +158,8 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 19 | Remote client world | DONE | 17, 18 |
 | 20 | Offscreen renderer | DONE | 19 |
 | 21 | Video delivery | DONE | 9, 15, 20 |
-| 22 | Audio scene | ACTIVE | 18, 19 |
-| 23 | WebRTC A/V | BLOCKED | 21, 22 |
+| 22 | Audio scene | DONE | 18, 19 |
+| 23 | WebRTC A/V | ACTIVE | 21, 22 |
 | 24 | Admin limits | BLOCKED | 10, 15, 21, 23 |
 | 25 | Observability | BLOCKED | 24 |
 | 26 | Deployment tests | BLOCKED | 4, 16, 23, 25 |
@@ -610,7 +612,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   cleanup, and the PR 23 handoff.
 - [x] `gradlew clean test build` passes with 141 focused protocol, filtering, range,
   truncation, ordering, and cleanup tests.
-- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
+- [x] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
