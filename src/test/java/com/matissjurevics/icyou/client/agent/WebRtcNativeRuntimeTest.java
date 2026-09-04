@@ -3,6 +3,8 @@ package com.matissjurevics.icyou.client.agent;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 
 import dev.onvoid.webrtc.PeerConnectionFactory;
 import dev.onvoid.webrtc.media.SyncClock;
@@ -12,7 +14,8 @@ import dev.onvoid.webrtc.media.video.CustomVideoSource;
 class WebRtcNativeRuntimeTest {
 
     @Test
-    void createsBundledNativeFactoryAndSynchronizedSources() {
+    @EnabledOnOs(OS.WINDOWS)
+    void createsBundledWindowsFactoryAndSynchronizedSources() {
         PeerConnectionFactory factory = new PeerConnectionFactory();
         SyncClock clock = new SyncClock();
         CustomVideoSource video = new CustomVideoSource(clock);

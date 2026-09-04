@@ -131,7 +131,9 @@ it in the commit that changes a roadmap item's status or contract.
 - PR 23 verification: `gradlew clean test build` passes with 154 tests; focused tests
   cover signaling codecs and binding, peer limits and expiry, bounded HTTP
   bodies and browser preflight, I420 conversion, spatial PCM mixing, and native
-  runtime startup and cleanup. Child PR CI is still required.
+  Windows runtime startup and cleanup. All six native classifiers are present in
+  the release JAR; cross-platform runtime deployment remains in PR 26. Child PR
+  CI is still required.
 - Current work: PR 23 WebRTC A/V is active.
 
 ## Roadmap and dependency status
