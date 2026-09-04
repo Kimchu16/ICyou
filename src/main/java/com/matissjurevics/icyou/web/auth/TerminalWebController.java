@@ -4,6 +4,7 @@ import java.util.Optional;
 import java.util.Map;
 import java.util.UUID;
 import java.time.Instant;
+import java.nio.charset.StandardCharsets;
 
 import com.matissjurevics.icyou.device.GlobalDeviceRegistry;
 import com.matissjurevics.icyou.render.video.ServerVideoFrameLifecycle;
@@ -13,6 +14,7 @@ import com.matissjurevics.icyou.web.WebRequest;
 import com.matissjurevics.icyou.web.WebResponse;
 import com.matissjurevics.icyou.web.auth.TerminalCredentialStore.Scope;
 import com.matissjurevics.icyou.web.demand.WebViewerDemandRegistry;
+import com.matissjurevics.icyou.render.webrtc.ServerWebRtcSignalingLifecycle;
 
 import net.minecraft.server.MinecraftServer;
 
@@ -24,29 +26,39 @@ public final class TerminalWebController {
     private final TerminalCredentialStore credentials;
     private final WebViewerDemandRegistry demand;
     private final ServerVideoFrameStore video;
+    private final MinecraftServer server;
 
     public TerminalWebController(MinecraftServer server) {
-        this(GlobalDeviceRegistry.get(server), TerminalCredentialStore.get(server),
+        this(server, GlobalDeviceRegistry.get(server), TerminalCredentialStore.get(server),
                 new WebViewerDemandRegistry(),
                 ServerVideoFrameLifecycle.store(server).orElseGet(ServerVideoFrameStore::new));
     }
 
     TerminalWebController(GlobalDeviceRegistry registry,
                           TerminalCredentialStore credentials) {
-        this(registry, credentials, new WebViewerDemandRegistry(),
+        this(null, registry, credentials, new WebViewerDemandRegistry(),
                 new ServerVideoFrameStore());
     }
 
     public TerminalWebController(GlobalDeviceRegistry registry,
                                  TerminalCredentialStore credentials,
                                  WebViewerDemandRegistry demand) {
-        this(registry, credentials, demand, new ServerVideoFrameStore());
+        this(null, registry, credentials, demand, new ServerVideoFrameStore());
     }
 
     public TerminalWebController(GlobalDeviceRegistry registry,
                                  TerminalCredentialStore credentials,
                                  WebViewerDemandRegistry demand,
                                  ServerVideoFrameStore video) {
+        this(null, registry, credentials, demand, video);
+    }
+
+    public TerminalWebController(MinecraftServer server,
+                                 GlobalDeviceRegistry registry,
+                                 TerminalCredentialStore credentials,
+                                 WebViewerDemandRegistry demand,
+                                 ServerVideoFrameStore video) {
+        this.server = server;
         this.registry = registry;
         this.credentials = credentials;
         this.demand = demand;
@@ -106,6 +118,10 @@ public final class TerminalWebController {
                                             terminalId, cameraId, Instant.now()).isPresent(),
                             () -> video.latest(cameraId)));
         }
+        if (parts[3].equals("webrtc")) {
+            return webrtc(request, parts, credential.credentialId(), terminalId,
+                    cameraId, now);
+        }
         if (!parts[3].equals("demand")) {
             return WebResponse.notFound();
         }
@@ -132,6 +148,54 @@ public final class TerminalWebController {
             return demand.close(sessionId, credential.credentialId(), terminalId, cameraId)
                     ? WebResponse.json(200, "{\"status\":\"closed\"}")
                     : WebResponse.notFound();
+        }
+        return WebResponse.notFound();
+    }
+
+    private WebResponse webrtc(WebRequest request, String[] parts,
+                               UUID credentialId,
+                               UUID terminalId, UUID cameraId, Instant now) {
+        if (server == null || parts.length < 5 || parts.length > 6) {
+            return WebResponse.notFound();
+        }
+        UUID viewerSessionId = uuid(parts[4]);
+        if (viewerSessionId == null || demand.renew(viewerSessionId,
+                credentialId, terminalId, cameraId, now).isEmpty()) {
+            return WebResponse.notFound();
+        }
+        if (parts.length == 5 && request.method().equals("POST")) {
+            String offer = new String(request.body(), StandardCharsets.UTF_8);
+            Optional<UUID> peerId;
+            try {
+                peerId = ServerWebRtcSignalingLifecycle.open(
+                        server, viewerSessionId, cameraId, offer);
+            } catch (IllegalArgumentException error) {
+                return WebResponse.notFound();
+            }
+            return peerId.map(id -> WebResponse.json(200,
+                    "{\"peerId\":\"" + id + "\"}"))
+                    .orElseGet(WebResponse::notFound);
+        }
+        if (parts.length != 6) return WebResponse.notFound();
+        UUID peerId = uuid(parts[5]);
+        var signaling = ServerWebRtcSignalingLifecycle.registry(server).orElse(null);
+        if (peerId == null || signaling == null) return WebResponse.notFound();
+        if (request.method().equals("GET")) {
+            var poll = signaling.poll(peerId, viewerSessionId, cameraId, now)
+                    .orElse(null);
+            if (poll == null) return WebResponse.notFound();
+            if (poll.answerSdp().isEmpty()) {
+                return WebResponse.json(202, "{\"status\":\"pending\"}");
+            }
+            return new WebResponse(200, "application/sdp; charset=utf-8",
+                    poll.answerSdp().orElseThrow().getBytes(StandardCharsets.UTF_8),
+                    Map.of("Cache-Control", "no-store"));
+        }
+        if (request.method().equals("DELETE")) {
+            var closed = signaling.close(peerId, viewerSessionId, cameraId).orElse(null);
+            if (closed == null) return WebResponse.notFound();
+            ServerWebRtcSignalingLifecycle.close(server, closed);
+            return WebResponse.json(200, "{\"status\":\"closed\"}");
         }
         return WebResponse.notFound();
     }

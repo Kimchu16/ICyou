@@ -20,6 +20,7 @@ import com.matissjurevics.icyou.render.scene.ServerSceneSnapshotLifecycle;
 import com.matissjurevics.icyou.render.scene.ServerSceneDeltaLifecycle;
 import com.matissjurevics.icyou.render.video.ServerVideoFrameLifecycle;
 import com.matissjurevics.icyou.render.audio.ServerAudioSceneLifecycle;
+import com.matissjurevics.icyou.render.webrtc.ServerWebRtcSignalingLifecycle;
 import com.matissjurevics.icyou.web.ServerWebLifecycle;
 import com.matissjurevics.icyou.web.auth.TerminalAuthCommands;
 import net.fabricmc.api.ModInitializer;
@@ -55,6 +56,7 @@ public class ICyouMod implements ModInitializer {
             }
         });
         ServerVideoFrameLifecycle.register();
+        ServerWebRtcSignalingLifecycle.register();
         ServerWebLifecycle.register();
         ServerDemandLifecycle.register();
         ServerChunkLeaseLifecycle.register();
