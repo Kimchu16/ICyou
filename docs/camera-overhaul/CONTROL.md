@@ -139,7 +139,9 @@ it in the commit that changes a roadmap item's status or contract.
 - PR 24 local verification: `gradlew test` passes with 164 tests; focused tests
   cover config parsing and relationships, registration, active jobs, viewers,
   retention, chunk areas, HTTP rejection, and per-agent WebRTC peer safety.
-- Current work: PR 24 admin limits is active.
+- PR 24 child PR #32 CI passed and was squash-merged as `15d8f46`; its local and
+  remote child branches were deleted.
+- Current work: PR 25 observability is active.
 
 ## Roadmap and dependency status
 
@@ -171,8 +173,8 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 21 | Video delivery | DONE | 9, 15, 20 |
 | 22 | Audio scene | DONE | 18, 19 |
 | 23 | WebRTC A/V | DONE | 21, 22 |
-| 24 | Admin limits | ACTIVE | 10, 15, 21, 23 |
-| 25 | Observability | BLOCKED | 24 |
+| 24 | Admin limits | DONE | 10, 15, 21, 23 |
+| 25 | Observability | ACTIVE | 24 |
 | 26 | Deployment tests | BLOCKED | 4, 16, 23, 25 |
 | 27 | Release | BLOCKED | 26 |
 
@@ -674,7 +676,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 - [x] `ADMIN_LIMITS.md` documents properties, defaults, hard bounds,
   relationships, enforcement, failure behavior, and restart requirements.
 - [x] `gradlew clean test build` passes after the full PR 24 change (164 tests).
-- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
+- [x] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
