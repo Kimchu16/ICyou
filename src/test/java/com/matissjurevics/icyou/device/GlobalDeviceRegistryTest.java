@@ -23,6 +23,39 @@ import net.minecraft.world.World;
 class GlobalDeviceRegistryTest {
 
     private static final RegistryKey<World> OVERWORLD = world("overworld_test");
+
+    @Test
+    void configurableRegistrationLimitBlocksNewAndRestoredCameras() {
+        GlobalDeviceRegistry registry = new GlobalDeviceRegistry();
+        TerminalRef terminal = new TerminalRef(UUID.randomUUID(), OVERWORLD,
+                new BlockPos(0, 64, 0));
+        registry.registerTerminal(terminal);
+        registry.setRegisteredCameraLimit(1);
+        CameraRef first = new CameraRef(UUID.randomUUID(), OVERWORLD,
+                new BlockPos(1, 64, 0));
+        registry.registerCamera(first, terminal.deviceId(), "First");
+
+        assertFalse(registry.hasRegisteredCameraCapacity());
+        assertThrows(IllegalStateException.class, () -> registry.registerCamera(
+                new CameraRef(UUID.randomUUID(), OVERWORLD, new BlockPos(2, 64, 0)),
+                terminal.deviceId(), "Second"));
+        CameraRef migrated = new CameraRef(UUID.randomUUID(), OVERWORLD,
+                new BlockPos(4, 64, 0));
+        registry.registerMigratedCamera(migrated, terminal.deviceId(), "Migrated");
+        assertTrue(registry.camera(migrated.deviceId()).isPresent());
+        registry.tombstoneCamera(migrated.deviceId(), Instant.EPOCH);
+        registry.tombstoneCamera(first.deviceId(), Instant.EPOCH);
+        CameraRef second = new CameraRef(UUID.randomUUID(), OVERWORLD,
+                new BlockPos(2, 64, 0));
+        registry.registerCamera(second, terminal.deviceId(), "Second");
+        CameraRef replacement = new CameraRef(first.deviceId(), OVERWORLD,
+                new BlockPos(3, 64, 0));
+        assertThrows(IllegalStateException.class,
+                () -> registry.restoreCamera(first.deviceId(), replacement));
+        registry.tombstoneCamera(second.deviceId(), Instant.EPOCH);
+        registry.restoreCamera(first.deviceId(), replacement);
+        assertFalse(registry.hasRegisteredCameraCapacity());
+    }
     private static final RegistryKey<World> NETHER = world("nether_test");
 
     @Test

@@ -42,6 +42,18 @@ public final class ServerSceneSnapshotEncoder {
                                    ServerPlayerEntity agent,
                                    RenderAgentAuthenticator authentication,
                                    long sequence) throws SnapshotNotReadyException {
+        return capture(server, assignment, agent, authentication, sequence,
+                CameraOverhaulContracts.SIMULATED_CHUNK_DIAMETER);
+    }
+
+    public static Transfer capture(MinecraftServer server, Assignment assignment,
+                                   ServerPlayerEntity agent,
+                                   RenderAgentAuthenticator authentication,
+                                   long sequence, int diameter)
+            throws SnapshotNotReadyException {
+        if (diameter < 1 || diameter % 2 == 0) {
+            throw new IllegalArgumentException("Scene chunk diameter must be positive and odd");
+        }
         ServerWorld world = server.getWorld(assignment.camera().dimension());
         if (world == null) {
             throw new SnapshotNotReadyException("Camera world is unavailable");
@@ -49,8 +61,9 @@ public final class ServerSceneSnapshotEncoder {
         int centerX = assignment.camera().position().getX() >> 4;
         int centerZ = assignment.camera().position().getZ() >> 4;
         List<Packet<? super ClientPlayPacketListener>> packets = new ArrayList<>();
-        for (int dz = -1; dz <= 1; dz++) {
-            for (int dx = -1; dx <= 1; dx++) {
+        int radius = diameter / 2;
+        for (int dz = -radius; dz <= radius; dz++) {
+            for (int dx = -radius; dx <= radius; dx++) {
                 WorldChunk chunk = world.getChunkManager().getWorldChunk(centerX + dx,
                         centerZ + dz);
                 if (chunk == null) {
@@ -61,7 +74,6 @@ public final class ServerSceneSnapshotEncoder {
             }
         }
 
-        int diameter = CameraOverhaulContracts.SIMULATED_CHUNK_DIAMETER;
         int minChunkX = centerX - diameter / 2;
         int minChunkZ = centerZ - diameter / 2;
         Box area = new Box(minChunkX * 16.0, world.getBottomY(), minChunkZ * 16.0,

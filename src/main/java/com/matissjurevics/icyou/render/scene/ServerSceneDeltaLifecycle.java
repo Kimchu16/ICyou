@@ -12,7 +12,6 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.matissjurevics.icyou.ICyouMod;
-import com.matissjurevics.icyou.overhaul.CameraOverhaulContracts;
 import com.matissjurevics.icyou.render.auth.RenderAgentAuthenticator;
 import com.matissjurevics.icyou.render.auth.ServerRenderAuthLifecycle;
 import com.matissjurevics.icyou.render.schedule.RenderScheduler;
@@ -20,6 +19,7 @@ import com.matissjurevics.icyou.render.schedule.RenderScheduler.Assignment;
 import com.matissjurevics.icyou.render.schedule.ServerRenderSchedulerLifecycle;
 import com.matissjurevics.icyou.render.scene.SceneChangeJournal.Changes;
 import com.matissjurevics.icyou.render.scene.ServerSceneSnapshotLifecycle.SnapshotProgress;
+import com.matissjurevics.icyou.admin.ServerAdminLimitsLifecycle;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -103,6 +103,8 @@ public final class ServerSceneDeltaLifecycle {
                 .collect(java.util.stream.Collectors.toSet());
         states.keySet().retainAll(activeKeys);
         Map<ServerWorld, Changes> changes = SceneChangeJournal.drain(server);
+        int diameter = ServerAdminLimitsLifecycle.limits(server)
+                .simulatedChunkDiameter();
 
         for (Assignment assignment : assignments.values().stream()
                 .sorted(Comparator.comparing(job -> job.jobId().toString())).toList()) {
@@ -122,15 +124,16 @@ public final class ServerSceneDeltaLifecycle {
                 if (state == null || state.snapshotSequence != progress.sequence()) {
                     state = new JobState(progress.sequence());
                     captureEntityBaseline(server, world, player, authentication, assignment,
-                            state);
+                            state, diameter);
                     states.put(key, state);
                 }
                 Changes worldChanges = changes.get(world);
                 if (worldChanges != null && worldChanges.overflowed()) {
                     throw new IllegalStateException("Scene change journal overflowed");
                 }
-                collectWorldChanges(assignment, worldChanges, state);
-                collectEntityChanges(server, world, player, authentication, assignment, state);
+                collectWorldChanges(assignment, worldChanges, state, diameter);
+                collectEntityChanges(server, world, player, authentication, assignment, state,
+                        diameter);
                 if (progress.delivered()) {
                     sendDelta(server, world, player, assignment, state);
                 }
@@ -145,8 +148,8 @@ public final class ServerSceneDeltaLifecycle {
 
     private static void captureEntityBaseline(MinecraftServer server, ServerWorld world,
             ServerPlayerEntity player, RenderAgentAuthenticator authentication,
-            Assignment assignment, JobState state) {
-        for (Entity entity : entities(world, authentication, assignment)) {
+            Assignment assignment, JobState state, int diameter) {
+        for (Entity entity : entities(world, authentication, assignment, diameter)) {
             List<byte[]> packets = encodedEntity(server, world, entity, player);
             state.entityFingerprints.put(entity.getId(), ScenePacketStream.encode(packets));
         }
@@ -154,9 +157,9 @@ public final class ServerSceneDeltaLifecycle {
 
     private static void collectEntityChanges(MinecraftServer server, ServerWorld world,
             ServerPlayerEntity player, RenderAgentAuthenticator authentication,
-            Assignment assignment, JobState state) {
+            Assignment assignment, JobState state, int diameter) {
         Set<Integer> present = new LinkedHashSet<>();
-        for (Entity entity : entities(world, authentication, assignment)) {
+        for (Entity entity : entities(world, authentication, assignment, diameter)) {
             int entityId = entity.getId();
             present.add(entityId);
             List<byte[]> packets = encodedEntity(server, world, entity, player);
@@ -183,8 +186,7 @@ public final class ServerSceneDeltaLifecycle {
     }
 
     private static List<Entity> entities(ServerWorld world,
-            RenderAgentAuthenticator authentication, Assignment assignment) {
-        int diameter = CameraOverhaulContracts.SIMULATED_CHUNK_DIAMETER;
+            RenderAgentAuthenticator authentication, Assignment assignment, int diameter) {
         int centerX = assignment.camera().position().getX() >> 4;
         int centerZ = assignment.camera().position().getZ() >> 4;
         int minChunkX = centerX - diameter / 2;
@@ -205,13 +207,13 @@ public final class ServerSceneDeltaLifecycle {
     }
 
     private static void collectWorldChanges(Assignment assignment, Changes changes,
-            JobState state) {
+            JobState state, int diameter) {
         if (changes == null) {
             return;
         }
         int centerX = assignment.camera().position().getX() >> 4;
         int centerZ = assignment.camera().position().getZ() >> 4;
-        int radius = CameraOverhaulContracts.SIMULATED_CHUNK_DIAMETER / 2;
+        int radius = diameter / 2;
         changes.blocks().stream().filter(position -> within(position.getX() >> 4,
                 position.getZ() >> 4, centerX, centerZ, radius)).forEach(state.blocks::add);
         changes.lightChunks().stream().filter(chunk -> within(chunk.x, chunk.z,

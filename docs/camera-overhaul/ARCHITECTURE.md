@@ -76,7 +76,7 @@ migrate older schemas only with the PR 4 backup and ambiguity-report guarantees.
 Default ceilings are 64 registered cameras, 4 active cameras, 8 viewers per
 camera, 16 viewers total, a 3x3 chunk area, and a 30-second grace period. These
 values are centralized in `CameraOverhaulContracts`; runtime configurability is
-deferred to PR 24.
+provided by the validated, server-owned settings in `ADMIN_LIMITS.md`.
 
 ## Security and restoration invariants
 

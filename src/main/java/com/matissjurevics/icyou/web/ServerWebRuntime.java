@@ -181,6 +181,7 @@ public final class ServerWebRuntime implements AutoCloseable {
             case 403 -> "Forbidden";
             case 404 -> "Not Found";
             case 405 -> "Method Not Allowed";
+            case 429 -> "Too Many Requests";
             case 500 -> "Internal Server Error";
             default -> "Response";
         };

@@ -44,6 +44,19 @@ class ChunkLeaseManagerTest {
     }
 
     @Test
+    void configurableDiameterChangesTheExactLeaseArea() {
+        RecordingTickets tickets = new RecordingTickets();
+        ChunkLeaseManager manager = new ChunkLeaseManager(tickets, 5);
+        CameraRef camera = camera(OVERWORLD, 0, 0);
+
+        manager.reconcile(Map.of(camera.deviceId(), camera), Set.of(camera.deviceId()));
+
+        assertEquals(25, manager.leases(camera.deviceId()).size());
+        assertTrue(manager.leases(camera.deviceId()).contains(location(OVERWORLD, -2, -2)));
+        assertTrue(manager.leases(camera.deviceId()).contains(location(OVERWORLD, 2, 2)));
+    }
+
+    @Test
     void overlappingCamerasReferenceCountSharedChunks() {
         RecordingTickets tickets = new RecordingTickets();
         ChunkLeaseManager manager = new ChunkLeaseManager(tickets);

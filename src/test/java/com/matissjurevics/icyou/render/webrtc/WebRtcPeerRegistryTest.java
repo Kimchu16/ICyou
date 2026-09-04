@@ -49,6 +49,23 @@ class WebRtcPeerRegistryTest {
         assertEquals(0, registry.size());
     }
 
+    @Test
+    void raisedTotalLimitStillCapsEachRenderAgent() {
+        WebRtcPeerRegistry registry = new WebRtcPeerRegistry(32);
+        Instant now = Instant.parse("2026-09-04T12:00:00Z");
+        UUID firstAgent = UUID.randomUUID();
+        UUID firstSession = UUID.randomUUID();
+        for (int index = 0; index < WebRtcPeerRegistry.MAX_PEERS_PER_AGENT; index++) {
+            assertTrue(registry.open(UUID.randomUUID(), UUID.randomUUID(),
+                    UUID.randomUUID(), 1, firstAgent, firstSession, "v=0\r\n", now)
+                    .isPresent());
+        }
+        assertTrue(registry.open(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                1, firstAgent, firstSession, "v=0\r\n", now).isEmpty());
+        assertTrue(registry.open(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                1, UUID.randomUUID(), UUID.randomUUID(), "v=0\r\n", now).isPresent());
+    }
+
     private static java.util.Optional<WebRtcPeerRegistry.Opened> open(
             WebRtcPeerRegistry registry, Instant now) {
         return registry.open(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),

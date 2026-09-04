@@ -14,6 +14,7 @@ import com.matissjurevics.icyou.render.protocol.RenderProtocol.MediaTransport;
 import com.matissjurevics.icyou.render.schedule.RenderScheduler.AssignmentState;
 import com.matissjurevics.icyou.render.schedule.ServerRenderSchedulerLifecycle;
 import com.matissjurevics.icyou.render.webrtc.WebRtcPeerRegistry.Binding;
+import com.matissjurevics.icyou.admin.ServerAdminLimitsLifecycle;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -32,7 +33,8 @@ public final class ServerWebRtcSignalingLifecycle {
     public static void register() {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             synchronized (ServerWebRtcSignalingLifecycle.class) {
-                ACTIVE.put(server, new WebRtcPeerRegistry());
+                ACTIVE.put(server, new WebRtcPeerRegistry(
+                        ServerAdminLimitsLifecycle.limits(server).totalViewers()));
             }
         });
         ServerTickEvents.END_SERVER_TICK.register(ServerWebRtcSignalingLifecycle::tick);

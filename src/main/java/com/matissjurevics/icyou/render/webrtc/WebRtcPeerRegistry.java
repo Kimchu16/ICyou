@@ -14,6 +14,7 @@ import java.util.UUID;
 public final class WebRtcPeerRegistry {
 
     public static final int MAX_PEERS = 16;
+    public static final int MAX_PEERS_PER_AGENT = 16;
     public static final Duration PEER_TIMEOUT = Duration.ofSeconds(30);
 
     public record Binding(UUID peerId, UUID viewerSessionId, UUID cameraId,
@@ -54,12 +55,26 @@ public final class WebRtcPeerRegistry {
     }
 
     private final Map<UUID, Peer> peers = new LinkedHashMap<>();
+    private final int maxPeers;
+
+    public WebRtcPeerRegistry() {
+        this(MAX_PEERS);
+    }
+
+    public WebRtcPeerRegistry(int maxPeers) {
+        if (maxPeers < 1) throw new IllegalArgumentException("Peer limit must be positive");
+        this.maxPeers = maxPeers;
+    }
 
     public synchronized Optional<Opened> open(UUID viewerSessionId, UUID cameraId,
             UUID jobId, long revision, UUID agentId, UUID agentSessionId,
             String offerSdp, Instant now) {
         expire(now);
-        if (peers.size() >= MAX_PEERS) return Optional.empty();
+        long agentPeers = peers.values().stream()
+                .filter(peer -> peer.binding.agentId().equals(agentId)).count();
+        if (peers.size() >= maxPeers || agentPeers >= MAX_PEERS_PER_AGENT) {
+            return Optional.empty();
+        }
         UUID peerId = UUID.randomUUID();
         Binding binding = new Binding(peerId, viewerSessionId, cameraId, jobId,
                 revision, agentId, agentSessionId, now);

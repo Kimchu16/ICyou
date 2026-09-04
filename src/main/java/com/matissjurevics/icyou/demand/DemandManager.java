@@ -66,6 +66,18 @@ public final class DemandManager {
     }
 
     private final Map<UUID, FeedState> feeds = new LinkedHashMap<>();
+    private final Duration retentionPeriod;
+
+    public DemandManager() {
+        this(RETENTION_PERIOD);
+    }
+
+    public DemandManager(Duration retentionPeriod) {
+        this.retentionPeriod = Objects.requireNonNull(retentionPeriod, "retentionPeriod");
+        if (retentionPeriod.isNegative() || retentionPeriod.isZero()) {
+            throw new IllegalArgumentException("Retention period must be positive");
+        }
+    }
 
     public synchronized void reconcile(Map<UUID, Integer> webViewers,
                                        Map<UUID, Integer> screens,
@@ -95,7 +107,7 @@ public final class DemandManager {
                 if (feed.lifecycle != FeedLifecycleState.RETAINING) {
                     transition(feed, FeedLifecycleState.RETAINING);
                     feed.retainingSince = now;
-                } else if (!now.isBefore(feed.retainingSince.plus(RETENTION_PERIOD))) {
+                } else if (!now.isBefore(feed.retainingSince.plus(retentionPeriod))) {
                     transition(feed, FeedLifecycleState.INACTIVE);
                     feed.retainingSince = null;
                 }

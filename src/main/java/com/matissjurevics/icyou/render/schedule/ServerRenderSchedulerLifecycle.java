@@ -15,6 +15,7 @@ import com.matissjurevics.icyou.render.protocol.RenderControlS2CPayload;
 import com.matissjurevics.icyou.render.protocol.RenderProtocol.JobAssignment;
 import com.matissjurevics.icyou.render.protocol.RenderProtocol.JobCancel;
 import com.matissjurevics.icyou.render.protocol.RenderProtocol.JobStatus;
+import com.matissjurevics.icyou.admin.ServerAdminLimitsLifecycle;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -53,7 +54,8 @@ public final class ServerRenderSchedulerLifecycle {
 
     private static synchronized void start(MinecraftServer server) {
         ServerDemandLifecycle.demand(server).ifPresent(demand ->
-                ACTIVE.put(server, new RenderScheduler(demand, new NetworkSink(server))));
+                ACTIVE.put(server, new RenderScheduler(demand, new NetworkSink(server),
+                        ServerAdminLimitsLifecycle.limits(server).activeCameras())));
     }
 
     private static synchronized void stop(MinecraftServer server) {

@@ -114,6 +114,31 @@ class TerminalWebControllerTest {
     }
 
     @Test
+    void viewerLimitReturnsAReadableRateLimitResponse() {
+        GlobalDeviceRegistry registry = new GlobalDeviceRegistry();
+        TerminalRef terminal = new TerminalRef(UUID.randomUUID(), WORLD, BlockPos.ORIGIN);
+        CameraRef first = new CameraRef(UUID.randomUUID(), WORLD, new BlockPos(1, 64, 0));
+        CameraRef second = new CameraRef(UUID.randomUUID(), WORLD, new BlockPos(2, 64, 0));
+        registry.registerTerminal(terminal, UUID.randomUUID());
+        registry.registerCamera(first, terminal.deviceId(), "First");
+        registry.registerCamera(second, terminal.deviceId(), "Second");
+        TerminalCredentialStore credentials = new TerminalCredentialStore();
+        var issued = credentials.issue(terminal.deviceId(), Scope.VIEWER);
+        TerminalWebController controller = new TerminalWebController(registry, credentials,
+                new WebViewerDemandRegistry(1, 1));
+        String root = "/v1/terminals/" + registry.slug(terminal.deviceId()) + "/cameras/";
+        Map<String, String> auth = Map.of("authorization", "Bearer " + issued.token());
+
+        assertEquals(200, controller.handle(new WebRequest(
+                "POST", root + first.deviceId() + "/demand", auth)).status());
+        WebResponse limited = controller.handle(new WebRequest(
+                "POST", root + second.deviceId() + "/demand", auth));
+        assertEquals(429, limited.status());
+        assertTrue(new String(limited.body(), StandardCharsets.UTF_8)
+                .contains("viewer_limit_reached"));
+    }
+
+    @Test
     void authenticatedDemandSessionCanOpenItsCameraVideoStream() {
         GlobalDeviceRegistry registry = new GlobalDeviceRegistry();
         TerminalRef terminal = new TerminalRef(UUID.randomUUID(), WORLD, BlockPos.ORIGIN);

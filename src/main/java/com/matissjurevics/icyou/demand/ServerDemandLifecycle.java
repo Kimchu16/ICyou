@@ -14,6 +14,7 @@ import java.util.function.Predicate;
 import com.matissjurevics.icyou.device.GlobalDeviceRegistry;
 import com.matissjurevics.icyou.screen.ScreenBlockEntity;
 import com.matissjurevics.icyou.web.ServerWebLifecycle;
+import com.matissjurevics.icyou.admin.ServerAdminLimitsLifecycle;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -35,7 +36,8 @@ public final class ServerDemandLifecycle {
     public static void register() {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             synchronized (ServerDemandLifecycle.class) {
-                ACTIVE.putIfAbsent(server, new DemandManager());
+                ACTIVE.putIfAbsent(server, new DemandManager(
+                        ServerAdminLimitsLifecycle.limits(server).resourceGracePeriod()));
             }
         });
         ServerTickEvents.END_SERVER_TICK.register(ServerDemandLifecycle::tick);

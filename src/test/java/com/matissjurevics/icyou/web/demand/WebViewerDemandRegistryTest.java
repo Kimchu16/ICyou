@@ -80,4 +80,24 @@ class WebViewerDemandRegistryTest {
         assertEquals(1, demand.revokeAll(terminal, Scope.OWNER));
         assertFalse(demand.hasDemand(camera, Instant.EPOCH));
     }
+
+    @Test
+    void enforcesPerCameraAndTotalViewerLimitsAfterDeduplication() {
+        WebViewerDemandRegistry demand = new WebViewerDemandRegistry(1, 2);
+        UUID terminal = UUID.randomUUID();
+        UUID firstCamera = UUID.randomUUID();
+        UUID secondCamera = UUID.randomUUID();
+        UUID firstCredential = UUID.randomUUID();
+
+        assertTrue(demand.tryOpen(firstCredential, Scope.VIEWER, terminal,
+                firstCamera, Instant.EPOCH).isPresent());
+        assertTrue(demand.tryOpen(firstCredential, Scope.VIEWER, terminal,
+                firstCamera, Instant.EPOCH.plusSeconds(1)).isPresent());
+        assertTrue(demand.tryOpen(UUID.randomUUID(), Scope.VIEWER, terminal,
+                firstCamera, Instant.EPOCH).isEmpty());
+        assertTrue(demand.tryOpen(UUID.randomUUID(), Scope.VIEWER, terminal,
+                secondCamera, Instant.EPOCH).isPresent());
+        assertTrue(demand.tryOpen(UUID.randomUUID(), Scope.VIEWER, terminal,
+                UUID.randomUUID(), Instant.EPOCH).isEmpty());
+    }
 }

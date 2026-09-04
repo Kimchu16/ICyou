@@ -31,11 +31,20 @@ public final class ChunkLeaseManager {
     }
 
     private final TicketSink tickets;
+    private final int chunkDiameter;
     private final Map<UUID, Set<LeaseLocation>> leasesByCamera = new LinkedHashMap<>();
     private final Map<LeaseLocation, Integer> referenceCounts = new LinkedHashMap<>();
 
     public ChunkLeaseManager(TicketSink tickets) {
+        this(tickets, CameraOverhaulContracts.SIMULATED_CHUNK_DIAMETER);
+    }
+
+    public ChunkLeaseManager(TicketSink tickets, int chunkDiameter) {
         this.tickets = Objects.requireNonNull(tickets, "tickets");
+        if (chunkDiameter < 1 || chunkDiameter % 2 == 0) {
+            throw new IllegalArgumentException("Chunk diameter must be positive and odd");
+        }
+        this.chunkDiameter = chunkDiameter;
     }
 
     /**
@@ -108,8 +117,8 @@ public final class ChunkLeaseManager {
         }
     }
 
-    private static Set<LeaseLocation> area(CameraRef camera) {
-        int radius = (CameraOverhaulContracts.SIMULATED_CHUNK_DIAMETER - 1) / 2;
+    private Set<LeaseLocation> area(CameraRef camera) {
+        int radius = (chunkDiameter - 1) / 2;
         ChunkPos center = new ChunkPos(camera.position());
         Set<LeaseLocation> result = new LinkedHashSet<>();
         for (int x = center.x - radius; x <= center.x + radius; x++) {

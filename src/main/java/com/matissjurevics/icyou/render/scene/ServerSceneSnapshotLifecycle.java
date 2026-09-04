@@ -15,6 +15,7 @@ import com.matissjurevics.icyou.render.schedule.RenderScheduler.Assignment;
 import com.matissjurevics.icyou.render.schedule.RenderScheduler.AssignmentState;
 import com.matissjurevics.icyou.render.schedule.ServerRenderSchedulerLifecycle;
 import com.matissjurevics.icyou.render.scene.SceneSnapshotProtocol.Transfer;
+import com.matissjurevics.icyou.admin.ServerAdminLimitsLifecycle;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -129,7 +130,8 @@ public final class ServerSceneSnapshotLifecycle {
         }
         try {
             Transfer transfer = ServerSceneSnapshotEncoder.capture(server, assignment, player,
-                    authentication, state.nextSequence++);
+                    authentication, state.nextSequence++,
+                    ServerAdminLimitsLifecycle.limits(server).simulatedChunkDiameter());
             state.outbound = new Outbound(JobKey.of(assignment), assignment.agentId(), transfer);
             sendNext(server, state);
         } catch (ServerSceneSnapshotEncoder.SnapshotNotReadyException ignored) {

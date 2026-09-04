@@ -65,6 +65,24 @@ class RenderSchedulerTest {
     }
 
     @Test
+    void configurableGlobalLimitCapsAssignmentsAcrossAgents() {
+        DemandManager demand = new DemandManager();
+        RecordingSink sink = new RecordingSink();
+        RenderScheduler scheduler = new RenderScheduler(demand, sink, 1);
+        CameraRef first = camera(World.OVERWORLD, 1);
+        CameraRef second = camera(World.OVERWORLD, 2);
+        demand.reconcile(Map.of(first.deviceId(), 1, second.deviceId(), 1), Map.of(),
+                ACTIVE, START);
+
+        scheduler.reconcile(Map.of(first.deviceId(), first, second.deviceId(), second),
+                List.of(agent(World.OVERWORLD, 2)));
+
+        assertEquals(1, scheduler.assignments().size());
+        assertEquals(1, demand.demands().values().stream()
+                .filter(feed -> feed.lifecycle() == FeedLifecycleState.UNAVAILABLE).count());
+    }
+
+    @Test
     void exactAvailableStatusPublishesFeedAndStaleStatusIsIgnored() {
         Fixture fixture = fixture();
         RenderScheduler.Assignment job = fixture.onlyAssignment();

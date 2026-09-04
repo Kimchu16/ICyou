@@ -11,6 +11,7 @@ import com.matissjurevics.icyou.web.auth.TerminalCredentialStore;
 import com.matissjurevics.icyou.device.GlobalDeviceRegistry;
 import com.matissjurevics.icyou.render.video.ServerVideoFrameLifecycle;
 import com.matissjurevics.icyou.web.demand.WebViewerDemandRegistry;
+import com.matissjurevics.icyou.admin.ServerAdminLimitsLifecycle;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.loader.api.FabricLoader;
@@ -49,7 +50,9 @@ public final class ServerWebLifecycle {
         }
         WebGateway gateway = new EmbeddedWebGateway(error ->
                 ICyouMod.LOGGER.error("ICyou server web listener failed", error));
-        WebViewerDemandRegistry demand = new WebViewerDemandRegistry();
+        var limits = ServerAdminLimitsLifecycle.limits(server);
+        WebViewerDemandRegistry demand = new WebViewerDemandRegistry(
+                limits.viewersPerCamera(), limits.totalViewers());
         var video = ServerVideoFrameLifecycle.store(server).orElse(null);
         if (video == null) {
             ICyouMod.LOGGER.error("ICyou video frame store is unavailable; listener disabled");

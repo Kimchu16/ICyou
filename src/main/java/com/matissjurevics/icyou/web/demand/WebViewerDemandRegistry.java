@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import com.matissjurevics.icyou.web.auth.TerminalCredentialStore.Scope;
+import com.matissjurevics.icyou.overhaul.CameraOverhaulContracts;
 
 /** Transient authenticated web-viewer demand, keyed by stable camera UUID. */
 public final class WebViewerDemandRegistry {
@@ -34,10 +35,31 @@ public final class WebViewerDemandRegistry {
 
     private final Map<UUID, ViewerSession> sessions = new LinkedHashMap<>();
     private final Map<ViewerKey, UUID> sessionByViewer = new LinkedHashMap<>();
+    private final int viewersPerCamera;
+    private final int totalViewers;
+
+    public WebViewerDemandRegistry() {
+        this(CameraOverhaulContracts.MAX_VIEWERS_PER_CAMERA,
+                CameraOverhaulContracts.MAX_TOTAL_VIEWERS);
+    }
+
+    public WebViewerDemandRegistry(int viewersPerCamera, int totalViewers) {
+        if (viewersPerCamera < 1 || totalViewers < viewersPerCamera) {
+            throw new IllegalArgumentException("Invalid web viewer limits");
+        }
+        this.viewersPerCamera = viewersPerCamera;
+        this.totalViewers = totalViewers;
+    }
 
     public synchronized ViewerSession open(UUID credentialId, Scope credentialScope,
                                            UUID terminalId,
                                            UUID cameraId, Instant now) {
+        return tryOpen(credentialId, credentialScope, terminalId, cameraId, now)
+                .orElseThrow(() -> new IllegalStateException("Web viewer limit reached"));
+    }
+
+    public synchronized Optional<ViewerSession> tryOpen(UUID credentialId,
+            Scope credentialScope, UUID terminalId, UUID cameraId, Instant now) {
         Objects.requireNonNull(now, "now");
         expire(now);
         ViewerKey key = new ViewerKey(credentialId, cameraId);
@@ -48,14 +70,19 @@ public final class WebViewerDemandRegistry {
                     credentialScope,
                     terminalId, cameraId, now);
             sessions.put(existingId, renewed);
-            return renewed;
+            return Optional.of(renewed);
+        }
+        long cameraViewers = sessions.values().stream()
+                .filter(session -> session.cameraId().equals(cameraId)).count();
+        if (sessions.size() >= totalViewers || cameraViewers >= viewersPerCamera) {
+            return Optional.empty();
         }
         ViewerSession created = new ViewerSession(UUID.randomUUID(), credentialId,
                 credentialScope,
                 terminalId, cameraId, now);
         sessions.put(created.sessionId(), created);
         sessionByViewer.put(key, created.sessionId());
-        return created;
+        return Optional.of(created);
     }
 
     public synchronized Optional<ViewerSession> renew(UUID sessionId, UUID credentialId,
