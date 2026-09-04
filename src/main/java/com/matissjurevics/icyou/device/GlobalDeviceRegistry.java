@@ -294,6 +294,10 @@ public final class GlobalDeviceRegistry extends PersistentState {
         return devicesById.size();
     }
 
+    public int cameraCount() {
+        return cameras.size();
+    }
+
     public void assignCamera(UUID screenId, Optional<UUID> cameraId) {
         ScreenEntry current = requireScreen(screenId);
         validateAssignment(current.terminalId(), cameraId);

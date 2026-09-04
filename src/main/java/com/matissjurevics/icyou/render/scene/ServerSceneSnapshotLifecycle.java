@@ -16,6 +16,8 @@ import com.matissjurevics.icyou.render.schedule.RenderScheduler.AssignmentState;
 import com.matissjurevics.icyou.render.schedule.ServerRenderSchedulerLifecycle;
 import com.matissjurevics.icyou.render.scene.SceneSnapshotProtocol.Transfer;
 import com.matissjurevics.icyou.admin.ServerAdminLimitsLifecycle;
+import com.matissjurevics.icyou.observability.CameraEventCounters.Event;
+import com.matissjurevics.icyou.observability.ServerCameraObservability;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -137,6 +139,7 @@ public final class ServerSceneSnapshotLifecycle {
         } catch (ServerSceneSnapshotEncoder.SnapshotNotReadyException ignored) {
             // Chunk leases are asynchronous; retry on a later tick.
         } catch (RuntimeException error) {
+            ServerCameraObservability.record(server, Event.SCENE_FAILURE);
             ICyouMod.LOGGER.error("Scene snapshot failed for camera {}",
                     assignment.camera().deviceId(), error);
             scheduler.failJob(assignment.jobId());

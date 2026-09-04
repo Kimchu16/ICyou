@@ -8,6 +8,8 @@ import com.matissjurevics.icyou.device.LegacyDeviceMigration;
 import com.matissjurevics.icyou.demand.ServerDemandLifecycle;
 import com.matissjurevics.icyou.feed.FeedManager;
 import com.matissjurevics.icyou.lease.ServerChunkLeaseLifecycle;
+import com.matissjurevics.icyou.observability.ObservabilityCommands;
+import com.matissjurevics.icyou.observability.ServerCameraObservability;
 import com.matissjurevics.icyou.tick.SupplementalRandomTickLifecycle;
 import com.matissjurevics.icyou.registry.ModBlockEntities;
 import com.matissjurevics.icyou.registry.ModBlocks;
@@ -69,9 +71,11 @@ public class ICyouMod implements ModInitializer {
         ServerSceneSnapshotLifecycle.register();
         ServerSceneDeltaLifecycle.register();
         ServerAudioSceneLifecycle.register();
+        ServerCameraObservability.register();
         TerminalAuthCommands.register();
         RenderAgentCommands.register();
         AdminLimitsCommands.register();
+        ObservabilityCommands.register();
 
         LOGGER.info("ICyou has been initialized!");
     }
