@@ -134,7 +134,9 @@ it in the commit that changes a roadmap item's status or contract.
   Windows runtime startup and cleanup. All six native classifiers are present in
   the release JAR; cross-platform runtime deployment remains in PR 26. Child PR
   CI is still required.
-- Current work: PR 23 WebRTC A/V is active.
+- PR 23 child PR #31 CI passed and was squash-merged as `76efb54`; its local and
+  remote child branches were deleted.
+- Current work: PR 24 admin limits is active.
 
 ## Roadmap and dependency status
 
@@ -165,8 +167,8 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 20 | Offscreen renderer | DONE | 19 |
 | 21 | Video delivery | DONE | 9, 15, 20 |
 | 22 | Audio scene | DONE | 18, 19 |
-| 23 | WebRTC A/V | ACTIVE | 21, 22 |
-| 24 | Admin limits | BLOCKED | 10, 15, 21, 23 |
+| 23 | WebRTC A/V | DONE | 21, 22 |
+| 24 | Admin limits | ACTIVE | 10, 15, 21, 23 |
 | 25 | Observability | BLOCKED | 24 |
 | 26 | Deployment tests | BLOCKED | 4, 16, 23, 25 |
 | 27 | Release | BLOCKED | 26 |
@@ -645,7 +647,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 - [x] `WEBRTC_AV.md` documents viewer signaling, authorization, limits, media,
   synchronization, lifecycle cleanup, and native packaging.
 - [x] `gradlew clean test build` passes after the full PR 23 change (154 tests).
-- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
+- [x] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
