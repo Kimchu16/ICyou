@@ -108,7 +108,11 @@ it in the commit that changes a roadmap item's status or contract.
   mismatched input, cancellation cleanup, and bounded client queues.
 - PR 18 child PR #26 CI passed and was squash-merged as `e74e04f`; its local and
   remote child branches were deleted.
-- Current work: PR 19 remote client world is active.
+- PR 19 verification: `gradlew clean test build` passed locally with 118 tests;
+  focused tests cover exact snapshot reuse, replacement cleanup, job retention,
+  disconnect cleanup, and the scene-only packet allow-list.
+- Current work: PR 19 remote client world is active on
+  `feature/cam-19-remote-world`.
 
 ## Roadmap and dependency status
 
@@ -501,6 +505,27 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   and the PR 19 remote-world boundary.
 - [x] `gradlew clean test build` passes with 115 focused protocol and ordering tests.
 - [x] Child PR CI passes and the PR is squash-merged into the integration branch.
+
+## PR 19 acceptance criteria
+
+- [x] Every installed snapshot creates a separate vanilla client world and world
+  renderer tied to the exact job revision and snapshot sequence.
+- [x] Remote chunks, lighting, block entities, entities, time, and weather stay
+  separate from the render agent player's real client world.
+- [x] Scene bytes use the connection's registry-aware vanilla play codec and a
+  strict allow-list that rejects non-scene packets.
+- [x] The verified snapshot is applied before ordered deltas, and packet handling
+  restores both main-world references even when application fails.
+- [x] Remote entity creation avoids real-world spawn sounds; remote entities and
+  renderer state advance only on the client thread.
+- [x] Snapshot replacement, cancellation, failure, dimension loss, and disconnect
+  close the previous renderer and remove the remote world.
+- [x] Creation or update failure reports the job failed; a remote world alone
+  never reports the feed available before PR 20 renders a frame.
+- [x] `REMOTE_CLIENT_WORLD.md` documents isolation, allowed packets, lifecycle,
+  cleanup, failure recovery, and the PR 20 boundary.
+- [x] `gradlew clean test build` passes with 118 focused ownership and policy tests.
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
