@@ -9,6 +9,7 @@ import com.matissjurevics.icyou.network.FeedDataS2CPayload;
 import com.matissjurevics.icyou.device.GlobalDeviceRegistry;
 import com.matissjurevics.icyou.render.protocol.RenderControlC2SPayload;
 import com.matissjurevics.icyou.render.protocol.RenderControlS2CPayload;
+import com.matissjurevics.icyou.render.scene.SceneSnapshotS2CPayload;
 
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -29,6 +30,8 @@ public final class ModNetworking {
                 DeviceSnapshotS2CPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(RenderControlS2CPayload.ID,
                 RenderControlS2CPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(SceneSnapshotS2CPayload.ID,
+                SceneSnapshotS2CPayload.CODEC);
 
         // --- C2S codecs ---
         PayloadTypeRegistry.playC2S().register(DeviceActionC2SPayload.ID,

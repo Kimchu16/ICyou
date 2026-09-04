@@ -215,6 +215,20 @@ class RenderSchedulerTest {
         assertEquals(job.revision() + 1, fixture.sink.cancels.get(0).cancel.revision());
     }
 
+    @Test
+    void serverSnapshotFailureEndsTheJobAndMakesDemandUnavailable() {
+        Fixture fixture = fixture();
+        RenderScheduler.Assignment job = fixture.onlyAssignment();
+
+        assertTrue(fixture.scheduler.failJob(job.jobId()));
+
+        assertTrue(fixture.scheduler.assignments().isEmpty());
+        assertEquals(FeedLifecycleState.UNAVAILABLE,
+                fixture.demand.lifecycle(fixture.camera.deviceId()));
+        assertEquals(CancelReason.REASSIGNED, fixture.sink.cancels.get(0).cancel.reason());
+        assertFalse(fixture.scheduler.failJob(job.jobId()));
+    }
+
     private static Fixture fixture() {
         DemandManager demand = new DemandManager();
         RecordingSink sink = new RecordingSink();

@@ -23,7 +23,8 @@ it in the commit that changes a roadmap item's status or contract.
 ## Current decisions and evidence
 
 - Accepted architecture: `ARCHITECTURE.md` and ADR 0001.
-- Save schema: 1. Device-reference network protocol: 1.
+- Save schema: 1. Device-reference, render-control, and scene-snapshot network
+  protocols: 1.
 - Baseline before overhaul edits: `gradlew build` passed on 2026-09-02 with no
   test sources. Gradle/Fabric: Loom 1.7.4, Gradle 8.9, Java 21, Minecraft 1.21.1.
 - PR 0 verification: `gradlew test build` passed on 2026-09-02 (three tests).
@@ -97,6 +98,9 @@ it in the commit that changes a roadmap item's status or contract.
   dimensions, revisions, status reporting, replacement, and disconnect cleanup.
 - PR 16 child PR #24 CI passed and was squash-merged as `7a3b0d0`; its local and
   remote child branches were deleted.
+- PR 17 verification: `gradlew clean test build` passed locally with 108 tests;
+  focused tests cover bounded codecs, vanilla-packet framing, fragmentation,
+  digest assembly, conflicts, job binding, cancellation, and capture failure.
 - Current work: PR 17 scene snapshots are active on
   `feature/cam-17-scene-snapshots`.
 
@@ -445,6 +449,34 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   capacity, revisions, job status, and disconnect cleanup.
 - [x] `gradlew clean test build` passes after the full PR 16 change (98 tests).
 - [x] Child PR CI passes and the PR is squash-merged into the integration branch.
+
+## PR 17 acceptance criteria
+
+- [x] Every accepted render job receives a complete snapshot tied to its exact
+  job ID, revision, session-owned assignment, camera reference, and sequence.
+- [x] The 3Ã—3 camera area uses vanilla chunk-with-light packets, preserving
+  blocks, biomes, heightmaps, block entities, and sky and block lighting.
+- [x] Entities in the area use vanilla bootstrap packets for spawn state,
+  tracked data, attributes, velocity, equipment, passengers, and leashes;
+  authenticated render agents are excluded.
+- [x] World time, time of day, rain, and thunder are part of the snapshot header.
+- [x] Vanilla packets are length-delimited and bounded by per-packet, packet-count,
+  snapshot-size, part-size, and concurrent-assembly limits.
+- [x] The server sends at most one begin message or snapshot part per tick and
+  waits for leased chunks instead of publishing an incomplete scene.
+- [x] The client accepts out-of-order parts but installs data only after exact
+  sizes, declared total length, and SHA-256 digest all match.
+- [x] Stale, conflicting, orphaned, malformed, oversized, and partial transfers
+  cannot replace a job's installed snapshot and are kept within bounded memory.
+- [x] Capture failure cancels the job and makes live demand unavailable; snapshot
+  installation alone never reports a feed as available.
+- [x] `SCENE_SNAPSHOTS.md` documents contents, framing, limits, pacing, retry,
+  verification, and the remote-world boundary.
+- [x] Focused tests cover codec bounds, fragmentation, packet framing, defensive
+  copies, out-of-order assembly, digest rejection, concurrency, job binding,
+  cancellation cleanup, and scheduler capture failure.
+- [x] `gradlew clean test build` passes after the full PR 17 change (108 tests).
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
