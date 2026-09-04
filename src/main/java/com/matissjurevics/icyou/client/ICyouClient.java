@@ -12,6 +12,7 @@ import com.matissjurevics.icyou.client.agent.ClientRemoteSceneLifecycle;
 import com.matissjurevics.icyou.client.agent.RemoteOffscreenRenderer;
 import com.matissjurevics.icyou.client.agent.ClientVideoDeliveryLifecycle;
 import com.matissjurevics.icyou.client.agent.ClientAudioSceneLifecycle;
+import com.matissjurevics.icyou.client.agent.ClientWebRtcLifecycle;
 import com.matissjurevics.icyou.client.hud.WirelessHud;
 import com.matissjurevics.icyou.client.render.RttFeedManager;
 import com.matissjurevics.icyou.client.render.ScreenFeedRenderer;
@@ -83,6 +84,7 @@ public class ICyouClient implements ClientModInitializer {
         RemoteOffscreenRenderer.register();
         ClientVideoDeliveryLifecycle.register();
         ClientAudioSceneLifecycle.register();
+        ClientWebRtcLifecycle.register();
 
         ICyouMod.LOGGER.info("ICyou client initialized");
     }

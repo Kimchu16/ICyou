@@ -7,7 +7,8 @@ import java.util.Objects;
 import java.util.Optional;
 
 /** Transport-neutral request data passed into the server control plane. */
-public record WebRequest(String method, String path, Map<String, String> headers) {
+public record WebRequest(String method, String path, Map<String, String> headers,
+                         byte[] body) {
     public WebRequest {
         method = Objects.requireNonNull(method, "method");
         path = Objects.requireNonNull(path, "path");
@@ -21,10 +22,20 @@ public record WebRequest(String method, String path, Map<String, String> headers
             }
         });
         headers = Map.copyOf(normalized);
+        body = Objects.requireNonNull(body, "body").clone();
+    }
+
+    public WebRequest(String method, String path, Map<String, String> headers) {
+        this(method, path, headers, new byte[0]);
     }
 
     public WebRequest(String method, String path) {
-        this(method, path, Map.of());
+        this(method, path, Map.of(), new byte[0]);
+    }
+
+    @Override
+    public byte[] body() {
+        return body.clone();
     }
 
     public Optional<String> header(String name) {

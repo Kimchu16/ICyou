@@ -22,6 +22,8 @@ import java.util.function.Consumer;
 /** Owns one server-side listener and closes every resource deterministically. */
 public final class ServerWebRuntime implements AutoCloseable {
 
+    public static final int MAX_REQUEST_BODY_BYTES = 128 * 1024;
+
     public enum State { STOPPED, STARTING, RUNNING, STOPPING, FAILED }
 
     private final Consumer<Throwable> failureHandler;
@@ -110,7 +112,8 @@ public final class ServerWebRuntime implements AutoCloseable {
             InputStream input = client.getInputStream();
             String request = readAsciiLine(input, 2_048);
             Map<String, String> headers = readHeaders(input);
-            WebResponse response = route(request, headers);
+            byte[] body = readBody(input, headers);
+            WebResponse response = route(request, headers, body);
             writeResponse(output, response);
             output.flush();
         } catch (IOException ignored) {
@@ -120,8 +123,9 @@ public final class ServerWebRuntime implements AutoCloseable {
         }
     }
 
-    private WebResponse route(String requestLine, Map<String, String> headers) {
-        if (requestLine == null || headers == null) {
+    private WebResponse route(String requestLine, Map<String, String> headers,
+                              byte[] body) {
+        if (requestLine == null || headers == null || body == null) {
             return WebResponse.json(400, "{\"error\":\"bad_request\"}");
         }
         String[] parts = requestLine.split(" ", 3);
@@ -129,8 +133,12 @@ public final class ServerWebRuntime implements AutoCloseable {
             return WebResponse.notFound();
         }
         try {
+            if (parts[0].equals("OPTIONS")) {
+                return new WebResponse(204, "text/plain; charset=utf-8",
+                        new byte[0], Map.of());
+            }
             WebResponse response = requestHandler.handle(
-                    new WebRequest(parts[0], parts[1], headers));
+                    new WebRequest(parts[0], parts[1], headers, body));
             return response == null ? WebResponse.notFound() : response;
         } catch (RuntimeException error) {
             failureHandler.accept(error);
@@ -148,6 +156,10 @@ public final class ServerWebRuntime implements AutoCloseable {
             headers.append("Content-Length: ").append(body.length).append("\r\n");
         }
         headers.append("Connection: close\r\n");
+        headers.append("Access-Control-Allow-Origin: *\r\n")
+                .append("Access-Control-Allow-Headers: Authorization, Content-Type\r\n")
+                .append("Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS\r\n")
+                .append("Access-Control-Max-Age: 600\r\n");
         response.headers().forEach((name, value) -> headers.append(name).append(": ")
                 .append(value).append("\r\n"));
         headers.append("\r\n");
@@ -162,6 +174,8 @@ public final class ServerWebRuntime implements AutoCloseable {
     private static String reason(int status) {
         return switch (status) {
             case 200 -> "OK";
+            case 202 -> "Accepted";
+            case 204 -> "No Content";
             case 400 -> "Bad Request";
             case 401 -> "Unauthorized";
             case 403 -> "Forbidden";
@@ -198,6 +212,28 @@ public final class ServerWebRuntime implements AutoCloseable {
             }
         }
         return null;
+    }
+
+    private static byte[] readBody(InputStream input, Map<String, String> headers)
+            throws IOException {
+        if (headers == null || headers.containsKey("transfer-encoding")) {
+            return null;
+        }
+        String declared = headers.get("content-length");
+        if (declared == null) {
+            return new byte[0];
+        }
+        int length;
+        try {
+            length = Integer.parseInt(declared);
+        } catch (NumberFormatException error) {
+            return null;
+        }
+        if (length < 0 || length > MAX_REQUEST_BODY_BYTES) {
+            return null;
+        }
+        byte[] body = input.readNBytes(length);
+        return body.length == length ? body : null;
     }
 
     private static String readAsciiLine(InputStream input, int limit) throws IOException {

@@ -13,6 +13,9 @@ import com.matissjurevics.icyou.render.scene.SceneSnapshotS2CPayload;
 import com.matissjurevics.icyou.render.scene.SceneDeltaS2CPayload;
 import com.matissjurevics.icyou.render.video.VideoFrameC2SPayload;
 import com.matissjurevics.icyou.render.audio.AudioSceneS2CPayload;
+import com.matissjurevics.icyou.render.webrtc.WebRtcAnswerC2SPayload;
+import com.matissjurevics.icyou.render.webrtc.WebRtcCloseS2CPayload;
+import com.matissjurevics.icyou.render.webrtc.WebRtcOfferS2CPayload;
 
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -39,6 +42,10 @@ public final class ModNetworking {
                 SceneDeltaS2CPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(AudioSceneS2CPayload.ID,
                 AudioSceneS2CPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(WebRtcOfferS2CPayload.ID,
+                WebRtcOfferS2CPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(WebRtcCloseS2CPayload.ID,
+                WebRtcCloseS2CPayload.CODEC);
 
         // --- C2S codecs ---
         PayloadTypeRegistry.playC2S().register(DeviceActionC2SPayload.ID,
@@ -49,6 +56,8 @@ public final class ModNetworking {
                 RenderControlC2SPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(VideoFrameC2SPayload.ID,
                 VideoFrameC2SPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(WebRtcAnswerC2SPayload.ID,
+                WebRtcAnswerC2SPayload.CODEC);
 
         // --- device mutations from the terminal GUI ---
         ServerPlayNetworking.registerGlobalReceiver(DeviceActionC2SPayload.ID, (payload, ctx) -> {

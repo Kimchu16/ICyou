@@ -56,8 +56,8 @@ public final class ServerWebLifecycle {
             return;
         }
         TerminalWebController controller = new TerminalWebController(
-                GlobalDeviceRegistry.get(server), TerminalCredentialStore.get(server), demand,
-                video);
+                server, GlobalDeviceRegistry.get(server), TerminalCredentialStore.get(server),
+                demand, video);
         if (gateway.start(config, controller::handle)) {
             ACTIVE.put(server, new ActiveWeb(gateway, demand));
             var address = gateway.boundAddress().orElseThrow();

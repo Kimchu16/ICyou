@@ -128,6 +128,10 @@ it in the commit that changes a roadmap item's status or contract.
   exclusion, exact session capability, truncation, ordering, and cleanup.
 - PR 22 child PR #30 CI passed and was squash-merged as `7ec6ae0`; its local and
   remote child branches were deleted.
+- PR 23 verification: `gradlew clean test build` passes with 154 tests; focused tests
+  cover signaling codecs and binding, peer limits and expiry, bounded HTTP
+  bodies and browser preflight, I420 conversion, spatial PCM mixing, and native
+  runtime startup and cleanup. Child PR CI is still required.
 - Current work: PR 23 WebRTC A/V is active.
 
 ## Roadmap and dependency status
@@ -613,6 +617,33 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 - [x] `gradlew clean test build` passes with 141 focused protocol, filtering, range,
   truncation, ordering, and cleanup tests.
 - [x] Child PR CI passes and the PR is squash-merged into the integration branch.
+
+## PR 23 acceptance criteria
+
+- [x] Authenticated viewers exchange bounded non-trickle SDP through the server
+  while media flows directly between the browser and assigned render agent.
+- [x] Signaling binds the exact viewer session, camera, job revision, agent, and
+  authenticated agent session; stale or mismatched answers are ignored.
+- [x] A server and an agent each hold at most 16 transient peers, with expiry,
+  explicit close, reassignment, reauthentication, disconnect, and shutdown
+  cleanup.
+- [x] The agent converts the latest 854x480 RGBA frame to I420 without adding a
+  video queue and publishes it through one shared per-job custom video source.
+- [x] A WebRTC-only accepted job can negotiate a peer and becomes available only
+  after its first video frame is successfully pushed.
+- [x] Seeded vanilla OGG assets are decoded off the client thread and mixed into
+  48 kHz, 16-bit stereo with pitch, distance attenuation, and camera-relative
+  equal-power panning.
+- [x] Audio work is bounded to one 512-item decode queue and 64 active clips;
+  overload drops old work instead of growing memory.
+- [x] Audio and video share one native synchronization clock and peer connection;
+  remote sound never plays through the render agent's local sound manager.
+- [x] The bundled native runtime covers official Windows, Linux, and macOS
+  classifiers and loads only for agents explicitly configured for WebRTC.
+- [x] `WEBRTC_AV.md` documents viewer signaling, authorization, limits, media,
+  synchronization, lifecycle cleanup, and native packaging.
+- [x] `gradlew clean test build` passes after the full PR 23 change (154 tests).
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 

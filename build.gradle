@@ -21,6 +21,13 @@ dependencies {
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+
+    implementation include('dev.onvoid.webrtc:webrtc-java:0.16.0')
+    ['windows-x86_64', 'linux-x86_64', 'linux-aarch64', 'linux-aarch32',
+     'macos-x86_64', 'macos-aarch64'].each { platform ->
+        implementation include(group: 'dev.onvoid.webrtc', name: 'webrtc-java',
+                version: '0.16.0', classifier: platform)
+    }
 }
 
 test {
