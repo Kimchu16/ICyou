@@ -1,6 +1,6 @@
 package com.matissjurevics.icyou.client.mixin;
 
-import com.matissjurevics.icyou.client.render.RttFeedManager;
+import com.matissjurevics.icyou.client.render.OffscreenRenderContext;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.Framebuffer;
@@ -16,7 +16,7 @@ public abstract class MinecraftClientMixin {
 
     @Inject(method = "getFramebuffer", at = @At("HEAD"), cancellable = true)
     private void icyou$getCameraFramebuffer(CallbackInfoReturnable<Framebuffer> cir) {
-        Framebuffer cameraTarget = RttFeedManager.currentRenderTarget();
+        Framebuffer cameraTarget = OffscreenRenderContext.target();
         if (cameraTarget != null) {
             cir.setReturnValue(cameraTarget);
         }
