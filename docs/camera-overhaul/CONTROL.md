@@ -101,8 +101,10 @@ it in the commit that changes a roadmap item's status or contract.
 - PR 17 verification: `gradlew clean test build` passed locally with 108 tests;
   focused tests cover bounded codecs, vanilla-packet framing, fragmentation,
   digest assembly, conflicts, job binding, cancellation, and capture failure.
-- Current work: PR 17 scene snapshots are active on
-  `feature/cam-17-scene-snapshots`.
+- PR 17 child PR #25 CI passed and was squash-merged as `50aebf2`; its local and
+  remote child branches were deleted.
+- Current work: PR 18 live scene deltas are active on
+  `feature/cam-18-scene-deltas`.
 
 ## Roadmap and dependency status
 
@@ -127,8 +129,8 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 14 | Render authentication | DONE | 13, 8 |
 | 15 | Render scheduler | DONE | 11, 13, 14 |
 | 16 | Render agent | DONE | 15 |
-| 17 | Scene snapshots | ACTIVE | 15 |
-| 18 | Scene deltas | BLOCKED | 17 |
+| 17 | Scene snapshots | DONE | 15 |
+| 18 | Scene deltas | ACTIVE | 17 |
 | 19 | Remote client world | BLOCKED | 17, 18 |
 | 20 | Offscreen renderer | BLOCKED | 19 |
 | 21 | Video delivery | BLOCKED | 9, 15, 20 |
@@ -476,7 +478,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   copies, out-of-order assembly, digest rejection, concurrency, job binding,
   cancellation cleanup, and scheduler capture failure.
 - [x] `gradlew clean test build` passes after the full PR 17 change (108 tests).
-- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
+- [x] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
