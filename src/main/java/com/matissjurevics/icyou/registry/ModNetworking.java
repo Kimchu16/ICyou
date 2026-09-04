@@ -11,6 +11,7 @@ import com.matissjurevics.icyou.render.protocol.RenderControlC2SPayload;
 import com.matissjurevics.icyou.render.protocol.RenderControlS2CPayload;
 import com.matissjurevics.icyou.render.scene.SceneSnapshotS2CPayload;
 import com.matissjurevics.icyou.render.scene.SceneDeltaS2CPayload;
+import com.matissjurevics.icyou.render.video.VideoFrameC2SPayload;
 
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -43,6 +44,8 @@ public final class ModNetworking {
                 DeviceSubscribeC2SPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(RenderControlC2SPayload.ID,
                 RenderControlC2SPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(VideoFrameC2SPayload.ID,
+                VideoFrameC2SPayload.CODEC);
 
         // --- device mutations from the terminal GUI ---
         ServerPlayNetworking.registerGlobalReceiver(DeviceActionC2SPayload.ID, (payload, ctx) -> {

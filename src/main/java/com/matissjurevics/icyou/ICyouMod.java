@@ -18,6 +18,7 @@ import com.matissjurevics.icyou.render.auth.ServerRenderAuthLifecycle;
 import com.matissjurevics.icyou.render.schedule.ServerRenderSchedulerLifecycle;
 import com.matissjurevics.icyou.render.scene.ServerSceneSnapshotLifecycle;
 import com.matissjurevics.icyou.render.scene.ServerSceneDeltaLifecycle;
+import com.matissjurevics.icyou.render.video.ServerVideoFrameLifecycle;
 import com.matissjurevics.icyou.web.ServerWebLifecycle;
 import com.matissjurevics.icyou.web.auth.TerminalAuthCommands;
 import net.fabricmc.api.ModInitializer;
@@ -52,6 +53,7 @@ public class ICyouMod implements ModInitializer {
                 LOGGER.info("Removed {} expired camera tombstones", purged);
             }
         });
+        ServerVideoFrameLifecycle.register();
         ServerWebLifecycle.register();
         ServerDemandLifecycle.register();
         ServerChunkLeaseLifecycle.register();

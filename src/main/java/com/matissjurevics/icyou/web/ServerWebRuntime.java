@@ -143,14 +143,20 @@ public final class ServerWebRuntime implements AutoCloseable {
         byte[] body = response.body();
         StringBuilder headers = new StringBuilder("HTTP/1.1 ")
                 .append(response.status()).append(' ').append(reason(response.status()))
-                .append("\r\nContent-Type: ").append(response.contentType())
-                .append("\r\nContent-Length: ").append(body.length)
-                .append("\r\nConnection: close\r\n");
+                .append("\r\nContent-Type: ").append(response.contentType()).append("\r\n");
+        if (!response.streaming()) {
+            headers.append("Content-Length: ").append(body.length).append("\r\n");
+        }
+        headers.append("Connection: close\r\n");
         response.headers().forEach((name, value) -> headers.append(name).append(": ")
                 .append(value).append("\r\n"));
         headers.append("\r\n");
         output.write(headers.toString().getBytes(StandardCharsets.US_ASCII));
-        output.write(body);
+        if (response.streaming()) {
+            response.writeStreamingBody(output);
+        } else {
+            output.write(body);
+        }
     }
 
     private static String reason(int status) {

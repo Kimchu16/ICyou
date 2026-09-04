@@ -54,7 +54,6 @@ public final class RemoteOffscreenRenderer {
         private long nextFrameSequence;
         private int failures;
         private int terrainWarmupAttempts;
-        private boolean available;
 
         private Target(long snapshotSequence) {
             this.snapshotSequence = snapshotSequence;
@@ -213,10 +212,6 @@ public final class RemoteOffscreenRenderer {
                 System.currentTimeMillis(), RgbaFrameCapture.topDown(target.readback,
                         CameraOverhaulContracts.VIDEO_WIDTH,
                         CameraOverhaulContracts.VIDEO_HEIGHT)));
-        if (!target.available) {
-            target.available = true;
-            ClientRenderAgentLifecycle.agent().markAvailable(jobId);
-        }
     }
 
     private static Direction facing(ClientWorld world, CameraRef camera) {

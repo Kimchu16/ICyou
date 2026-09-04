@@ -9,6 +9,7 @@ import com.matissjurevics.icyou.render.protocol.RenderProtocol.AuthChallenge;
 import com.matissjurevics.icyou.render.protocol.RenderProtocol.AuthResult;
 import com.matissjurevics.icyou.render.protocol.RenderProtocol.JobAssignment;
 import com.matissjurevics.icyou.render.protocol.RenderProtocol.JobCancel;
+import com.matissjurevics.icyou.render.protocol.RenderProtocol.MediaTransport;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -22,6 +23,7 @@ public final class ClientRenderAgentLifecycle {
     private static RenderAgentClient agent;
     private static ClientRenderJobExecutor executor;
     private static boolean awaitingPlayer;
+    private static RenderAgentConfig.Settings settings = RenderAgentConfig.Settings.disabled();
 
     private ClientRenderAgentLifecycle() {
     }
@@ -30,6 +32,7 @@ public final class ClientRenderAgentLifecycle {
         Path configPath = FabricLoader.getInstance().getConfigDir()
                 .resolve(RenderAgentConfig.FILE_NAME);
         RenderAgentConfig.LoadResult loaded = RenderAgentConfig.load(configPath);
+        settings = loaded.settings();
         executor = new ClientRenderJobExecutor();
         agent = new RenderAgentClient(loaded.settings(), message ->
                 ClientPlayNetworking.send(new RenderControlC2SPayload(message)), executor);
@@ -56,6 +59,10 @@ public final class ClientRenderAgentLifecycle {
 
     public static ClientRenderJobExecutor executor() {
         return executor;
+    }
+
+    public static boolean supports(MediaTransport transport) {
+        return settings.transports().contains(transport);
     }
 
     private static void tick(MinecraftClient client) {
