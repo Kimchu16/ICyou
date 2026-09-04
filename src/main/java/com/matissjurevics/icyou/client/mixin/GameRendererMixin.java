@@ -1,6 +1,7 @@
 package com.matissjurevics.icyou.client.mixin;
 
 import com.matissjurevics.icyou.client.render.RttFeedManager;
+import com.matissjurevics.icyou.client.agent.RemoteOffscreenRenderer;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.GameRenderer;
@@ -21,6 +22,8 @@ public abstract class GameRendererMixin {
                     + "Lorg/joml/Matrix4f;)V", shift = At.Shift.BEFORE))
     private void icyou$renderCameraFeeds(RenderTickCounter tickCounter, CallbackInfo ci) {
         RttFeedManager.renderFrame(MinecraftClient.getInstance(),
+                (GameRenderer) (Object) this, tickCounter);
+        RemoteOffscreenRenderer.renderFrame(MinecraftClient.getInstance(),
                 (GameRenderer) (Object) this, tickCounter);
     }
 }

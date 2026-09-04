@@ -113,7 +113,11 @@ it in the commit that changes a roadmap item's status or contract.
   disconnect cleanup, and the scene-only packet allow-list.
 - PR 19 child PR #27 CI passed and was squash-merged as `36c6f2a`; its local and
   remote child branches were deleted.
-- Current work: PR 20 offscreen renderer is active.
+- PR 20 verification: `gradlew clean test build` passed locally with 123 tests;
+  focused tests cover frame size and immutability, stale replacement, cleanup,
+  fair due-time selection, and RGBA row orientation.
+- Current work: PR 20 offscreen renderer is active on
+  `feature/cam-20-offscreen-renderer`.
 
 ## Roadmap and dependency status
 
@@ -527,6 +531,29 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   cleanup, failure recovery, and the PR 20 boundary.
 - [x] `gradlew clean test build` passes with 118 focused ownership and policy tests.
 - [x] Child PR CI passes and the PR is squash-merged into the integration branch.
+
+## PR 20 acceptance criteria
+
+- [x] Each active remote world owns a depth-enabled 854x480 framebuffer and a
+  reusable readback buffer, matching the render protocol contract.
+- [x] Camera position, facing, 70-degree field of view, and 64-block far plane
+  render the isolated 3x3 scene through its own vanilla world renderer.
+- [x] A shared scoped framebuffer context keeps nested vanilla passes offscreen
+  and restores the player world, main framebuffer, and projection after each pass.
+- [x] Oldest-due selection renders at most one remote job per game frame without
+  starving other active jobs and targets 10 frames per second.
+- [x] GPU pixels are converted to top-down RGBA and only the latest immutable,
+  job-bound frame is retained for PR 21.
+- [x] The first frame waits for complete terrain and is the first point that may
+  report the render job `AVAILABLE`.
+- [x] Warm-up is bounded to 30 seconds of attempts; three consecutive render or
+  capture failures fail the job instead of advertising placeholder video.
+- [x] Cancellation, snapshot replacement, failure, and disconnect delete GPU
+  targets and retained frame bytes.
+- [x] `OFFSCREEN_RENDERER.md` documents the render contract, fairness, isolation,
+  readiness, failure recovery, cleanup, and PR 21 handoff.
+- [x] `gradlew clean test build` passes with 123 focused frame and cadence tests.
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 

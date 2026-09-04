@@ -64,7 +64,6 @@ public final class RttFeedManager {
     private static final Map<UUID, CameraFeed> FEEDS = new LinkedHashMap<>();
 
     private static boolean renderingFeed;
-    private static Framebuffer renderTarget;
     private static boolean disabled;
     private static int failureCount;
     private static ByteBuffer captureBuf;
@@ -220,9 +219,9 @@ public final class RttFeedManager {
         Quaternionf inverseRotation = camera.getRotation().conjugate(new Quaternionf());
         Matrix4f view = new Matrix4f().rotation(inverseRotation);
 
-        renderTarget = feed.framebuffer;
         renderingFeed = true;
-        try {
+        try (OffscreenRenderContext.Scope ignored =
+                     OffscreenRenderContext.enter(feed.framebuffer)) {
             feed.framebuffer.setClearColor(0.01f, 0.015f, 0.02f, 1.0f);
             // Framebuffer.clear() binds and then unbinds its target internally.
             // Bind for the world pass only after clearing, or the world is drawn
@@ -248,7 +247,6 @@ public final class RttFeedManager {
             }
         } finally {
             renderingFeed = false;
-            renderTarget = null;
             feed.framebuffer.endWrite();
             client.getFramebuffer().beginWrite(true);
             gameRenderer.loadProjectionMatrix(savedProjection);
@@ -400,7 +398,7 @@ public final class RttFeedManager {
 
     /** Used by WorldRendererMixin to keep every vanilla sub-pass in the feed FBO. */
     public static Framebuffer currentRenderTarget() {
-        return renderingFeed ? renderTarget : null;
+        return renderingFeed ? OffscreenRenderContext.target() : null;
     }
 
     public static boolean hasLiveFeed(ScreenBlockEntity screen) {
