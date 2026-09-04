@@ -123,7 +123,10 @@ it in the commit that changes a roadmap item's status or contract.
   storage, exact session authorization, MJPEG output, streaming HTTP, and routes.
 - PR 21 child PR #29 CI passed and was squash-merged as `8c1252a`; its local and
   remote child branches were deleted.
-- Current work: PR 22 audio scene is active.
+- PR 22 verification: `gradlew clean test build` passed locally with 141 tests;
+  focused tests cover codec fields and bounds, category/range filtering, agent
+  exclusion, exact session capability, truncation, ordering, and cleanup.
+- Current work: PR 22 audio scene is active on `feature/cam-22-audio-scene`.
 
 ## Roadmap and dependency status
 
@@ -584,6 +587,30 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 - [x] `gradlew clean test build` passes with 133 focused codec, storage, encoder,
   authorization, streaming, and route tests.
 - [x] Child PR CI passes and the PR is squash-merged into the integration branch.
+
+## PR 22 acceptance criteria
+
+- [x] Server-world positioned and entity sounds are captured with registry ID,
+  category, position, volume, pitch, and deterministic seed.
+- [x] Vanilla environmental, block, mob, weather, explosion, and nearby-player
+  sounds are included when their audible radius reaches the camera.
+- [x] Music, records, voice, client UI, voice-chat-mod, and render-agent-source
+  sounds cannot enter the remote audio scene.
+- [x] Batches bind to the exact job revision and verified snapshot with a
+  strictly increasing audio sequence and server world time.
+- [x] Delivery requires the exact assigned authenticated session and an
+  advertised WebRTC capability.
+- [x] Journals, batches, identifiers, fields, and client pending events are
+  bounded; truncation is explicit and slow consumers drop oldest events.
+- [x] The client verifies active job and snapshot ownership, rejects gaps, and
+  retains events for PR 23 without playing them through the local sound manager.
+- [x] Cancellation, replacement, failure, and disconnect release sequence state
+  and pending audio events.
+- [x] `AUDIO_SCENE.md` documents sources, exclusions, range, ordering, bounds,
+  cleanup, and the PR 23 handoff.
+- [x] `gradlew clean test build` passes with 141 focused protocol, filtering, range,
+  truncation, ordering, and cleanup tests.
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
