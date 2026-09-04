@@ -118,7 +118,11 @@ it in the commit that changes a roadmap item's status or contract.
   fair due-time selection, and RGBA row orientation.
 - PR 20 child PR #28 CI passed and was squash-merged as `350d2af`; its local and
   remote child branches were deleted.
-- Current work: PR 21 video delivery is active.
+- PR 21 verification: `gradlew clean test build` passed locally with 133 tests;
+  focused tests cover JPEG encoding and bounds, codec versions, latest-frame
+  storage, exact session authorization, MJPEG output, streaming HTTP, and routes.
+- Current work: PR 21 video delivery is active on
+  `feature/cam-21-video-delivery`.
 
 ## Roadmap and dependency status
 
@@ -545,8 +549,8 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   starving other active jobs and targets 10 frames per second.
 - [x] GPU pixels are converted to top-down RGBA and only the latest immutable,
   job-bound frame is retained for PR 21.
-- [x] The first frame waits for complete terrain and is the first point that may
-  report the render job `AVAILABLE`.
+- [x] The first frame waits for complete terrain and is retained for PR 21;
+  availability waits until that frame is encoded and sent.
 - [x] Warm-up is bounded to 30 seconds of attempts; three consecutive render or
   capture failures fail the job instead of advertising placeholder video.
 - [x] Cancellation, snapshot replacement, failure, and disconnect delete GPU
@@ -555,6 +559,30 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   readiness, failure recovery, cleanup, and PR 21 handoff.
 - [x] `gradlew clean test build` passes with 123 focused frame and cadence tests.
 - [x] Child PR CI passes and the PR is squash-merged into the integration branch.
+
+## PR 21 acceptance criteria
+
+- [x] Raw 854x480 RGBA frames are encoded off the client thread as quality-82
+  JPEGs with a strict 2 MiB output ceiling.
+- [x] Each agent keeps at most one encode in flight and one latest raw frame per
+  job, so slow encoding cannot create an unbounded queue.
+- [x] JPEG payloads carry the exact job, revision, camera, sequence, and capture
+  time; malformed, oversized, stale, or unsupported-version payloads are rejected.
+- [x] The server accepts frames only from the authenticated MJPEG-capable agent
+  session assigned to an accepted or available matching job.
+- [x] The server retains only the newest JPEG for each current job and camera and
+  removes it when the scheduler no longer owns that exact job revision.
+- [x] An authenticated viewer demand session opens a no-store MJPEG stream for
+  its exact terminal and camera; token revocation or session loss ends the stream.
+- [x] Streams send only changed latest frames, without a per-viewer queue or a
+  fixed response length.
+- [x] A render job becomes `AVAILABLE` only after its first JPEG is encoded and
+  sent to the server; repeated failures fail the job instead.
+- [x] `VIDEO_DELIVERY.md` documents encoding, transport, authorization,
+  backpressure, availability, cleanup, and the PR 23 WebRTC boundary.
+- [x] `gradlew clean test build` passes with 133 focused codec, storage, encoder,
+  authorization, streaming, and route tests.
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 

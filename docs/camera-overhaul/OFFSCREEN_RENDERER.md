@@ -28,13 +28,13 @@ with the existing local camera renderer. The client's world and projection are
 restored after every pass, including failures. Remote and local offscreen passes
 cannot nest.
 
-The first frame is published only after vanilla reports terrain rendering
+The first raw frame is retained only after vanilla reports terrain rendering
 complete. Terrain gets up to 30 seconds of scheduled warm-up attempts. Three
 consecutive render or capture failures fail the job and release its framebuffer.
 
 ## Availability and cleanup
 
-The render agent reports `AVAILABLE` only after it captures the first complete
-frame. Job cancellation, snapshot replacement, failure, or disconnect deletes
-the framebuffer and removes the retained frame. PR 21 will encode and deliver
-these job- and camera-bound frames without changing this rendering lifecycle.
+PR 21 reports `AVAILABLE` only after the first complete frame is encoded and sent
+to the server. Capturing raw pixels alone is not enough. Job cancellation,
+snapshot replacement, failure, or disconnect deletes the framebuffer and removes
+the retained frame.

@@ -82,6 +82,31 @@ class EmbeddedWebGatewayTest {
         gateway.close();
     }
 
+    @Test
+    void streamingResponsesOmitFixedLengthAndWriteTheirBody() throws Exception {
+        WebGateway gateway = new EmbeddedWebGateway(null);
+        assertTrue(gateway.start(new WebServerConfig(true, "127.0.0.1", 0), request ->
+                WebResponse.stream(200, "multipart/x-test", Map.of("Cache-Control", "no-store"),
+                        output -> output.write("stream-part".getBytes(StandardCharsets.US_ASCII)))));
+        int port = gateway.boundAddress().orElseThrow().getPort();
+
+        String response;
+        try (Socket client = new Socket("127.0.0.1", port)) {
+            client.getOutputStream().write(
+                    "GET /stream HTTP/1.1\r\nHost: localhost\r\n\r\n"
+                            .getBytes(StandardCharsets.US_ASCII));
+            client.getOutputStream().flush();
+            response = new String(client.getInputStream().readAllBytes(),
+                    StandardCharsets.US_ASCII);
+        }
+
+        assertTrue(response.startsWith("HTTP/1.1 200 OK\r\n"));
+        assertTrue(response.contains("Content-Type: multipart/x-test\r\n"));
+        assertFalse(response.toLowerCase(java.util.Locale.ROOT).contains("content-length:"));
+        assertTrue(response.endsWith("\r\n\r\nstream-part"));
+        gateway.close();
+    }
+
     private static String requestStatus(int port, String request) throws Exception {
         try (Socket client = new Socket("127.0.0.1", port);
              OutputStreamWriter writer = new OutputStreamWriter(

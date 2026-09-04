@@ -9,6 +9,7 @@ import com.matissjurevics.icyou.ICyouMod;
 import com.matissjurevics.icyou.web.auth.TerminalWebController;
 import com.matissjurevics.icyou.web.auth.TerminalCredentialStore;
 import com.matissjurevics.icyou.device.GlobalDeviceRegistry;
+import com.matissjurevics.icyou.render.video.ServerVideoFrameLifecycle;
 import com.matissjurevics.icyou.web.demand.WebViewerDemandRegistry;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -49,8 +50,14 @@ public final class ServerWebLifecycle {
         WebGateway gateway = new EmbeddedWebGateway(error ->
                 ICyouMod.LOGGER.error("ICyou server web listener failed", error));
         WebViewerDemandRegistry demand = new WebViewerDemandRegistry();
+        var video = ServerVideoFrameLifecycle.store(server).orElse(null);
+        if (video == null) {
+            ICyouMod.LOGGER.error("ICyou video frame store is unavailable; listener disabled");
+            return;
+        }
         TerminalWebController controller = new TerminalWebController(
-                GlobalDeviceRegistry.get(server), TerminalCredentialStore.get(server), demand);
+                GlobalDeviceRegistry.get(server), TerminalCredentialStore.get(server), demand,
+                video);
         if (gateway.start(config, controller::handle)) {
             ACTIVE.put(server, new ActiveWeb(gateway, demand));
             var address = gateway.boundAddress().orElseThrow();

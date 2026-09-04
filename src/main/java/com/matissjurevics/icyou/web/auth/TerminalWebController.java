@@ -1,10 +1,14 @@
 package com.matissjurevics.icyou.web.auth;
 
 import java.util.Optional;
+import java.util.Map;
 import java.util.UUID;
 import java.time.Instant;
 
 import com.matissjurevics.icyou.device.GlobalDeviceRegistry;
+import com.matissjurevics.icyou.render.video.ServerVideoFrameLifecycle;
+import com.matissjurevics.icyou.render.video.ServerVideoFrameStore;
+import com.matissjurevics.icyou.web.MjpegStream;
 import com.matissjurevics.icyou.web.WebRequest;
 import com.matissjurevics.icyou.web.WebResponse;
 import com.matissjurevics.icyou.web.auth.TerminalCredentialStore.Scope;
@@ -19,23 +23,34 @@ public final class TerminalWebController {
     private final GlobalDeviceRegistry registry;
     private final TerminalCredentialStore credentials;
     private final WebViewerDemandRegistry demand;
+    private final ServerVideoFrameStore video;
 
     public TerminalWebController(MinecraftServer server) {
         this(GlobalDeviceRegistry.get(server), TerminalCredentialStore.get(server),
-                new WebViewerDemandRegistry());
+                new WebViewerDemandRegistry(),
+                ServerVideoFrameLifecycle.store(server).orElseGet(ServerVideoFrameStore::new));
     }
 
     TerminalWebController(GlobalDeviceRegistry registry,
                           TerminalCredentialStore credentials) {
-        this(registry, credentials, new WebViewerDemandRegistry());
+        this(registry, credentials, new WebViewerDemandRegistry(),
+                new ServerVideoFrameStore());
     }
 
     public TerminalWebController(GlobalDeviceRegistry registry,
                                  TerminalCredentialStore credentials,
                                  WebViewerDemandRegistry demand) {
+        this(registry, credentials, demand, new ServerVideoFrameStore());
+    }
+
+    public TerminalWebController(GlobalDeviceRegistry registry,
+                                 TerminalCredentialStore credentials,
+                                 WebViewerDemandRegistry demand,
+                                 ServerVideoFrameStore video) {
         this.registry = registry;
         this.credentials = credentials;
         this.demand = demand;
+        this.video = video;
     }
 
     public WebResponse handle(WebRequest request) {
@@ -65,8 +80,7 @@ public final class TerminalWebController {
         if (parts.length == 1 && request.method().equals("GET")) {
             return WebResponse.json(200, terminalJson(registry, terminalId, slug));
         }
-        if (parts.length < 4 || !parts[1].equals("cameras")
-                || !parts[3].equals("demand")) {
+        if (parts.length < 4 || !parts[1].equals("cameras")) {
             return WebResponse.notFound();
         }
         UUID cameraId = uuid(parts[2]);
@@ -76,6 +90,25 @@ public final class TerminalWebController {
         }
         var credential = authenticated.get();
         Instant now = Instant.now();
+        if (parts[3].equals("video")) {
+            if (parts.length != 5 || !request.method().equals("GET")) {
+                return WebResponse.notFound();
+            }
+            UUID sessionId = uuid(parts[4]);
+            if (sessionId == null || demand.renew(sessionId, credential.credentialId(),
+                    terminalId, cameraId, now).isEmpty()) {
+                return WebResponse.notFound();
+            }
+            return WebResponse.stream(200, MjpegStream.CONTENT_TYPE,
+                    Map.of("Cache-Control", "no-store"), new MjpegStream(
+                            () -> credentials.permits(terminalId, token, Scope.VIEWER)
+                                    && demand.renew(sessionId, credential.credentialId(),
+                                            terminalId, cameraId, Instant.now()).isPresent(),
+                            () -> video.latest(cameraId)));
+        }
+        if (!parts[3].equals("demand")) {
+            return WebResponse.notFound();
+        }
         if (parts.length == 4 && request.method().equals("POST")) {
             var session = demand.open(credential.credentialId(), credential.scope(),
                     terminalId, cameraId, now);

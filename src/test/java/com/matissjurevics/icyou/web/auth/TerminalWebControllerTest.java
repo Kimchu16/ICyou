@@ -13,6 +13,9 @@ import org.junit.jupiter.api.Test;
 import com.matissjurevics.icyou.device.CameraRef;
 import com.matissjurevics.icyou.device.GlobalDeviceRegistry;
 import com.matissjurevics.icyou.device.TerminalRef;
+import com.matissjurevics.icyou.render.video.ServerVideoFrameStore;
+import com.matissjurevics.icyou.render.video.VideoFrameProtocol.Frame;
+import com.matissjurevics.icyou.web.MjpegStream;
 import com.matissjurevics.icyou.web.WebRequest;
 import com.matissjurevics.icyou.web.WebResponse;
 import com.matissjurevics.icyou.web.auth.TerminalCredentialStore.Scope;
@@ -107,6 +110,42 @@ class TerminalWebControllerTest {
                 "DELETE", base + '/' + sessionId, auth)).status());
         assertFalse(demand.hasDemand(camera.deviceId(), java.time.Instant.now()));
         assertEquals(404, controller.handle(new WebRequest("POST", base,
+                Map.of("authorization", "Bearer invalid"))).status());
+    }
+
+    @Test
+    void authenticatedDemandSessionCanOpenItsCameraVideoStream() {
+        GlobalDeviceRegistry registry = new GlobalDeviceRegistry();
+        TerminalRef terminal = new TerminalRef(UUID.randomUUID(), WORLD, BlockPos.ORIGIN);
+        CameraRef camera = new CameraRef(UUID.randomUUID(), WORLD, new BlockPos(1, 64, 0));
+        registry.registerTerminal(terminal, UUID.randomUUID());
+        registry.registerCamera(camera, terminal.deviceId(), "Video camera");
+        TerminalCredentialStore credentials = new TerminalCredentialStore();
+        var issued = credentials.issue(terminal.deviceId(), Scope.VIEWER);
+        WebViewerDemandRegistry demand = new WebViewerDemandRegistry();
+        ServerVideoFrameStore video = new ServerVideoFrameStore();
+        video.accept(new Frame(UUID.randomUUID(), 0, camera.deviceId(), 1, 2,
+                new byte[] {(byte) 0xff, (byte) 0xd8, (byte) 0xff, (byte) 0xd9}), 3);
+        TerminalWebController controller = new TerminalWebController(
+                registry, credentials, demand, video);
+        String root = "/v1/terminals/" + registry.slug(terminal.deviceId())
+                + "/cameras/" + camera.deviceId();
+        Map<String, String> auth = Map.of("authorization", "Bearer " + issued.token());
+        WebResponse opened = controller.handle(new WebRequest("POST", root + "/demand", auth));
+        String json = new String(opened.body(), StandardCharsets.UTF_8);
+        UUID sessionId = UUID.fromString(json.substring(json.indexOf(':') + 2,
+                json.length() - 2));
+
+        WebResponse stream = controller.handle(new WebRequest(
+                "GET", root + "/video/" + sessionId, auth));
+
+        assertEquals(200, stream.status());
+        assertEquals(MjpegStream.CONTENT_TYPE, stream.contentType());
+        assertTrue(stream.streaming());
+        assertEquals(404, controller.handle(new WebRequest(
+                "GET", root + "/video/" + UUID.randomUUID(), auth)).status());
+        assertEquals(404, controller.handle(new WebRequest(
+                "GET", root + "/video/" + sessionId,
                 Map.of("authorization", "Bearer invalid"))).status());
     }
 }
