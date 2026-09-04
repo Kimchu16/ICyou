@@ -176,6 +176,19 @@ public final class RenderScheduler {
                 });
     }
 
+    public synchronized boolean failJob(UUID jobId) {
+        Objects.requireNonNull(jobId, "jobId");
+        Assignment assignment = byCamera.values().stream()
+                .filter(job -> job.jobId().equals(jobId)).findFirst().orElse(null);
+        if (assignment == null) {
+            return false;
+        }
+        DemandManager.Demand feed = demand.demand(assignment.camera().deviceId()).orElse(null);
+        unavailableIfDemanded(feed);
+        cancel(assignment, CancelReason.REASSIGNED, true);
+        return true;
+    }
+
     public synchronized Map<UUID, Assignment> assignments() {
         return Map.copyOf(byCamera);
     }
