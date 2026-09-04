@@ -111,8 +111,9 @@ it in the commit that changes a roadmap item's status or contract.
 - PR 19 verification: `gradlew clean test build` passed locally with 118 tests;
   focused tests cover exact snapshot reuse, replacement cleanup, job retention,
   disconnect cleanup, and the scene-only packet allow-list.
-- Current work: PR 19 remote client world is active on
-  `feature/cam-19-remote-world`.
+- PR 19 child PR #27 CI passed and was squash-merged as `36c6f2a`; its local and
+  remote child branches were deleted.
+- Current work: PR 20 offscreen renderer is active.
 
 ## Roadmap and dependency status
 
@@ -139,8 +140,8 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 16 | Render agent | DONE | 15 |
 | 17 | Scene snapshots | DONE | 15 |
 | 18 | Scene deltas | DONE | 17 |
-| 19 | Remote client world | ACTIVE | 17, 18 |
-| 20 | Offscreen renderer | BLOCKED | 19 |
+| 19 | Remote client world | DONE | 17, 18 |
+| 20 | Offscreen renderer | ACTIVE | 19 |
 | 21 | Video delivery | BLOCKED | 9, 15, 20 |
 | 22 | Audio scene | BLOCKED | 18, 19 |
 | 23 | WebRTC A/V | BLOCKED | 21, 22 |
@@ -525,7 +526,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 - [x] `REMOTE_CLIENT_WORLD.md` documents isolation, allowed packets, lifecycle,
   cleanup, failure recovery, and the PR 20 boundary.
 - [x] `gradlew clean test build` passes with 118 focused ownership and policy tests.
-- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
+- [x] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
