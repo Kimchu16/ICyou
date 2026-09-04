@@ -1,7 +1,10 @@
 package com.matissjurevics.icyou.mixin;
 
 import com.matissjurevics.icyou.tick.SupplementalRandomTickLifecycle;
+import com.matissjurevics.icyou.render.scene.SceneChangeJournal;
 
+import net.minecraft.block.BlockState;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.world.chunk.WorldChunk;
 
@@ -18,5 +21,12 @@ public abstract class ServerWorldMixin {
                                          CallbackInfo callback) {
         SupplementalRandomTickLifecycle.recordVanillaTick(
                 (ServerWorld) (Object) this, chunk.getPos());
+    }
+
+    @Inject(method = "updateListeners", at = @At("HEAD"))
+    private void icyou$recordSceneBlock(BlockPos position, BlockState oldState,
+                                        BlockState newState, int flags,
+                                        CallbackInfo callback) {
+        SceneChangeJournal.recordBlock((ServerWorld) (Object) this, position);
     }
 }
