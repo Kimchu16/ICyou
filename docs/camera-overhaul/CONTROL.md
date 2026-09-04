@@ -92,6 +92,9 @@ it in the commit that changes a roadmap item's status or contract.
   movement, retention, slot reclamation, and shutdown.
 - PR 15 child PR #23 CI passed and was squash-merged as `b361b43`; its local and
   remote child branches were deleted.
+- PR 16 verification: `gradlew clean test build` passed locally with 98 tests;
+  13 focused tests cover fail-closed configuration, UUID-bound handshake, limits,
+  dimensions, revisions, status reporting, replacement, and disconnect cleanup.
 - Current work: PR 16 render-agent job execution is active on
   `feature/cam-16-render-agent`.
 
@@ -417,6 +420,29 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   failure, disconnect, movement, retention, and retained-slot reclamation.
 - [x] `gradlew clean test build` passes after the full PR 15 change (85 tests).
 - [x] Child PR CI passes and the PR is squash-merged into the integration branch.
+
+## PR 16 acceptance criteria
+
+- [x] Render-agent mode is opt-in and disabled when its local configuration is
+  absent, disabled, unreadable, or invalid.
+- [x] Configuration accepts a server-issued credential, capacity 1â€“4, and known
+  media transports without retaining or logging the plaintext token.
+- [x] The client starts authentication only after its player exists, answers the
+  server challenge for that Minecraft UUID, and accepts only the matching result.
+- [x] Assignments require an authenticated session, the current dimension, a
+  newer revision, and available configured capacity.
+- [x] Accepted jobs are staged behind an executor boundary for PRs 17â€“20 and
+  report `ACCEPTED`, never `AVAILABLE` before a real downstream feed exists.
+- [x] Only executor hooks report availability or failure; failure details are
+  printable and capped to the protocol limit.
+- [x] Newer cancellations stop jobs, stale assignments and cancellations are
+  ignored, and disconnect clears the session, revision history, and all jobs.
+- [x] `RENDER_AGENT.md` documents safe opt-in setup, credential handling,
+  authentication, job limits, cleanup, and the downstream availability boundary.
+- [x] Focused tests cover configuration, handshake binding, denial, dimensions,
+  capacity, revisions, job status, and disconnect cleanup.
+- [x] `gradlew clean test build` passes after the full PR 16 change (98 tests).
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 

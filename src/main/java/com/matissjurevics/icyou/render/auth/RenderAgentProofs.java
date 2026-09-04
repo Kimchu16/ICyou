@@ -59,7 +59,14 @@ public final class RenderAgentProofs {
 
     public static Optional<byte[]> createProof(String token, UUID challengeId, byte[] nonce,
                                                UUID minecraftId) {
-        return parse(token).map(material -> sign(material.key(), challengeId, nonce, minecraftId));
+        return parse(token).map(material -> createProof(
+                material, challengeId, nonce, minecraftId));
+    }
+
+    public static byte[] createProof(TokenMaterial material, UUID challengeId, byte[] nonce,
+                                     UUID minecraftId) {
+        Objects.requireNonNull(material, "material");
+        return sign(material.key(), challengeId, nonce, minecraftId);
     }
 
     static byte[] sign(byte[] key, UUID challengeId, byte[] nonce, UUID minecraftId) {
