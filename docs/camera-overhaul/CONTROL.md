@@ -116,8 +116,9 @@ it in the commit that changes a roadmap item's status or contract.
 - PR 20 verification: `gradlew clean test build` passed locally with 123 tests;
   focused tests cover frame size and immutability, stale replacement, cleanup,
   fair due-time selection, and RGBA row orientation.
-- Current work: PR 20 offscreen renderer is active on
-  `feature/cam-20-offscreen-renderer`.
+- PR 20 child PR #28 CI passed and was squash-merged as `350d2af`; its local and
+  remote child branches were deleted.
+- Current work: PR 21 video delivery is active.
 
 ## Roadmap and dependency status
 
@@ -145,9 +146,9 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 17 | Scene snapshots | DONE | 15 |
 | 18 | Scene deltas | DONE | 17 |
 | 19 | Remote client world | DONE | 17, 18 |
-| 20 | Offscreen renderer | ACTIVE | 19 |
-| 21 | Video delivery | BLOCKED | 9, 15, 20 |
-| 22 | Audio scene | BLOCKED | 18, 19 |
+| 20 | Offscreen renderer | DONE | 19 |
+| 21 | Video delivery | ACTIVE | 9, 15, 20 |
+| 22 | Audio scene | READY | 18, 19 |
 | 23 | WebRTC A/V | BLOCKED | 21, 22 |
 | 24 | Admin limits | BLOCKED | 10, 15, 21, 23 |
 | 25 | Observability | BLOCKED | 24 |
@@ -553,7 +554,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 - [x] `OFFSCREEN_RENDERER.md` documents the render contract, fairness, isolation,
   readiness, failure recovery, cleanup, and PR 21 handoff.
 - [x] `gradlew clean test build` passes with 123 focused frame and cadence tests.
-- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
+- [x] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
