@@ -12,6 +12,7 @@ import com.matissjurevics.icyou.demand.ServerDemandLifecycle;
 import com.matissjurevics.icyou.device.CameraRef;
 import com.matissjurevics.icyou.device.GlobalDeviceRegistry;
 import com.matissjurevics.icyou.overhaul.FeedLifecycleState;
+import com.matissjurevics.icyou.admin.ServerAdminLimitsLifecycle;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -39,7 +40,9 @@ public final class ServerChunkLeaseLifecycle {
     public static void register() {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             synchronized (ServerChunkLeaseLifecycle.class) {
-                ACTIVE.putIfAbsent(server, new ChunkLeaseManager(new MinecraftTickets(server)));
+                ACTIVE.putIfAbsent(server, new ChunkLeaseManager(new MinecraftTickets(server),
+                        ServerAdminLimitsLifecycle.limits(server)
+                                .simulatedChunkDiameter()));
             }
         });
         ServerTickEvents.END_SERVER_TICK.register(ServerChunkLeaseLifecycle::tick);

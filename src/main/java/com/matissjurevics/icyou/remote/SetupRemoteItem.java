@@ -117,6 +117,12 @@ public class SetupRemoteItem extends Item {
                         }
                         registry.relinkCamera(cam.deviceId(), terminalRef.deviceId());
                     } else if (registry.cameraTombstone(cam.deviceId()).isPresent()) {
+                        if (!registry.hasRegisteredCameraCapacity()) {
+                            player.sendMessage(Text.literal(
+                                    "This server's registered camera limit has been reached."),
+                                    false);
+                            return ActionResult.FAIL;
+                        }
                         var tombstone = registry.cameraTombstone(cam.deviceId()).orElseThrow();
                         if (!tombstone.terminalId().equals(terminalRef.deviceId())) {
                             player.sendMessage(Text.literal(
@@ -125,6 +131,12 @@ public class SetupRemoteItem extends Item {
                         }
                         registry.restoreCamera(cam.deviceId(), cam);
                     } else {
+                        if (!registry.hasRegisteredCameraCapacity()) {
+                            player.sendMessage(Text.literal(
+                                    "This server's registered camera limit has been reached."),
+                                    false);
+                            return ActionResult.FAIL;
+                        }
                         registry.registerCamera(cam, terminalRef.deviceId(), shortName("CAM", cam.deviceId()));
                     }
                     stack.remove(ModDataComponentTypes.LINKED_CAMERA);

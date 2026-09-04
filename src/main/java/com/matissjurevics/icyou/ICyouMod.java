@@ -2,6 +2,8 @@ package com.matissjurevics.icyou;
 
 import java.time.Instant;
 
+import com.matissjurevics.icyou.admin.ServerAdminLimitsLifecycle;
+import com.matissjurevics.icyou.admin.AdminLimitsCommands;
 import com.matissjurevics.icyou.device.LegacyDeviceMigration;
 import com.matissjurevics.icyou.demand.ServerDemandLifecycle;
 import com.matissjurevics.icyou.feed.FeedManager;
@@ -55,6 +57,7 @@ public class ICyouMod implements ModInitializer {
                 LOGGER.info("Removed {} expired camera tombstones", purged);
             }
         });
+        ServerAdminLimitsLifecycle.register();
         ServerVideoFrameLifecycle.register();
         ServerWebRtcSignalingLifecycle.register();
         ServerWebLifecycle.register();
@@ -68,6 +71,7 @@ public class ICyouMod implements ModInitializer {
         ServerAudioSceneLifecycle.register();
         TerminalAuthCommands.register();
         RenderAgentCommands.register();
+        AdminLimitsCommands.register();
 
         LOGGER.info("ICyou has been initialized!");
     }

@@ -49,6 +49,7 @@ public final class GlobalDeviceRegistry extends PersistentState {
     private final Map<UUID, LinkedHashSet<UUID>> cameraIdsByTerminal = new LinkedHashMap<>();
     private final Map<UUID, LinkedHashSet<UUID>> screenIdsByTerminal = new LinkedHashMap<>();
     private boolean legacyMigrationComplete;
+    private int registeredCameraLimit = CameraOverhaulContracts.MAX_REGISTERED_CAMERAS;
 
     public record TerminalEntry(TerminalRef ref, Optional<UUID> ownerId) {
         public TerminalEntry {
@@ -93,6 +94,22 @@ public final class GlobalDeviceRegistry extends PersistentState {
         Objects.requireNonNull(server, "server");
         return server.getOverworld().getPersistentStateManager()
                 .getOrCreate(TYPE, PERSISTENCE_KEY);
+    }
+
+    public void setRegisteredCameraLimit(int limit) {
+        if (limit < 1 || limit > 4_096) {
+            throw new IllegalArgumentException(
+                    "Registered camera limit must be between 1 and 4096");
+        }
+        registeredCameraLimit = limit;
+    }
+
+    public int registeredCameraLimit() {
+        return registeredCameraLimit;
+    }
+
+    public boolean hasRegisteredCameraCapacity() {
+        return cameras.size() < registeredCameraLimit;
     }
 
     public TerminalEntry registerTerminal(TerminalRef ref) {
@@ -153,9 +170,21 @@ public final class GlobalDeviceRegistry extends PersistentState {
     }
 
     public CameraEntry registerCamera(CameraRef ref, UUID terminalId, String name) {
+        return registerCamera(ref, terminalId, name, true);
+    }
+
+    CameraEntry registerMigratedCamera(CameraRef ref, UUID terminalId, String name) {
+        return registerCamera(ref, terminalId, name, false);
+    }
+
+    private CameraEntry registerCamera(CameraRef ref, UUID terminalId, String name,
+                                       boolean enforceLimit) {
         Objects.requireNonNull(ref, "ref");
         requireTerminal(terminalId);
         requireAvailable(ref);
+        if (enforceLimit) {
+            requireCameraCapacity();
+        }
         CameraEntry entry = new CameraEntry(ref, terminalId, name);
         cameras.put(ref.deviceId(), entry);
         index(ref);
@@ -373,6 +402,7 @@ public final class GlobalDeviceRegistry extends PersistentState {
             throw new IllegalArgumentException(
                     "Device location is already registered: " + replacementLocation);
         }
+        requireCameraCapacity();
         CameraEntry restored = new CameraEntry(
                 replacement, tombstone.terminalId(), tombstone.name());
         cameraTombstones.remove(cameraId);
@@ -508,7 +538,7 @@ public final class GlobalDeviceRegistry extends PersistentState {
         NbtList cameraList = nbt.getList("cameras", NbtElement.COMPOUND_TYPE);
         for (int i = 0; i < cameraList.size(); i++) {
             NbtCompound tag = cameraList.getCompound(i);
-            registry.registerCamera(CameraRef.fromNbt(tag.getCompound("ref")),
+            registry.registerMigratedCamera(CameraRef.fromNbt(tag.getCompound("ref")),
                     requiredUuid(tag, "terminalId"), tag.getString("name"));
         }
 
@@ -548,6 +578,13 @@ public final class GlobalDeviceRegistry extends PersistentState {
         DeviceLocation location = DeviceLocation.of(ref);
         if (deviceIdsByLocation.containsKey(location)) {
             throw new IllegalArgumentException("Device location is already registered: " + location);
+        }
+    }
+
+    private void requireCameraCapacity() {
+        if (!hasRegisteredCameraCapacity()) {
+            throw new IllegalStateException("Registered camera limit reached: "
+                    + registeredCameraLimit);
         }
     }
 

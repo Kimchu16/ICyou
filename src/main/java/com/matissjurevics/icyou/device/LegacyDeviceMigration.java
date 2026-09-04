@@ -202,7 +202,8 @@ public final class LegacyDeviceMigration {
         CameraRef ref = new CameraRef(stableId("camera", dimension, legacy.id(), legacy.pos()),
                 dimension, legacy.pos());
         try {
-            target.registerCamera(ref, terminalId, safeName(legacy.name(), "CAM", legacy.id()));
+            target.registerMigratedCamera(
+                    ref, terminalId, safeName(legacy.name(), "CAM", legacy.id()));
             cameraIds.put(legacy.id(), ref.deviceId());
             report.migratedCamera();
         } catch (IllegalArgumentException error) {

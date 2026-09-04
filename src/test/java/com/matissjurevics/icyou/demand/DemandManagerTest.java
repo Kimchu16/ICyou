@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
+import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
 
@@ -94,5 +95,18 @@ class DemandManagerTest {
         DemandManager manager = new DemandManager();
         assertThrows(IllegalStateException.class,
                 () -> manager.markAvailable(UUID.randomUUID()));
+    }
+
+    @Test
+    void configurableGracePeriodControlsReleaseTime() {
+        DemandManager manager = new DemandManager(Duration.ofSeconds(5));
+        UUID camera = UUID.randomUUID();
+        manager.reconcile(Map.of(camera, 1), Map.of(), ACTIVE, Instant.EPOCH);
+        manager.reconcile(Map.of(), Map.of(), ACTIVE, Instant.ofEpochSecond(1));
+
+        manager.reconcile(Map.of(), Map.of(), ACTIVE, Instant.ofEpochSecond(5));
+        assertEquals(FeedLifecycleState.RETAINING, manager.lifecycle(camera));
+        manager.reconcile(Map.of(), Map.of(), ACTIVE, Instant.ofEpochSecond(6));
+        assertEquals(FeedLifecycleState.INACTIVE, manager.lifecycle(camera));
     }
 }

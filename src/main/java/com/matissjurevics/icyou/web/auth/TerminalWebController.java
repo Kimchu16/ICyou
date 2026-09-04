@@ -126,10 +126,12 @@ public final class TerminalWebController {
             return WebResponse.notFound();
         }
         if (parts.length == 4 && request.method().equals("POST")) {
-            var session = demand.open(credential.credentialId(), credential.scope(),
-                    terminalId, cameraId, now);
-            return WebResponse.json(200,
-                    "{\"sessionId\":\"" + session.sessionId() + "\"}");
+            var session = demand.tryOpen(credential.credentialId(), credential.scope(),
+                    terminalId, cameraId, now).orElse(null);
+            return session == null
+                    ? WebResponse.json(429, "{\"error\":\"viewer_limit_reached\"}")
+                    : WebResponse.json(200,
+                            "{\"sessionId\":\"" + session.sessionId() + "\"}");
         }
         if (parts.length != 5) {
             return WebResponse.notFound();

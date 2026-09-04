@@ -136,6 +136,9 @@ it in the commit that changes a roadmap item's status or contract.
   CI is still required.
 - PR 23 child PR #31 CI passed and was squash-merged as `76efb54`; its local and
   remote child branches were deleted.
+- PR 24 local verification: `gradlew test` passes with 164 tests; focused tests
+  cover config parsing and relationships, registration, active jobs, viewers,
+  retention, chunk areas, HTTP rejection, and per-agent WebRTC peer safety.
 - Current work: PR 24 admin limits is active.
 
 ## Roadmap and dependency status
@@ -648,6 +651,30 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   synchronization, lifecycle cleanup, and native packaging.
 - [x] `gradlew clean test build` passes after the full PR 23 change (154 tests).
 - [x] Child PR CI passes and the PR is squash-merged into the integration branch.
+
+## PR 24 acceptance criteria
+
+- [x] One immutable per-server limit set is loaded from
+  `icyou-camera-limits.properties`, with the architecture defaults when absent.
+- [x] Invalid numbers, ranges, cross-limit relationships, even chunk diameters,
+  or unsafe combined simulated-chunk budgets reject the whole file and use safe
+  defaults.
+- [x] New camera links and tombstone restorations enforce the registered-camera
+  ceiling without deleting saved cameras when an admin lowers the limit.
+- [x] The scheduler enforces the configured active-camera ceiling across all
+  agents while retaining the render protocol's per-agent safety cap.
+- [x] Authenticated viewer opens enforce both per-camera and total ceilings after
+  deduplication and return a readable HTTP 429 response when full.
+- [x] WebRTC scales its server-wide peer ceiling with total viewers while keeping
+  each render agent bounded to 16 native peers.
+- [x] Chunk leases, snapshots, entities, block changes, and light changes use one
+  configured odd scene diameter.
+- [x] The configured grace period controls final job and chunk release.
+- [x] `/icyou limits` shows operators the exact values loaded for this server run.
+- [x] `ADMIN_LIMITS.md` documents properties, defaults, hard bounds,
+  relationships, enforcement, failure behavior, and restart requirements.
+- [x] `gradlew clean test build` passes after the full PR 24 change (164 tests).
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 

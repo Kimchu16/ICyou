@@ -71,12 +71,22 @@ public final class RenderScheduler {
 
     private final DemandManager demand;
     private final MessageSink messages;
+    private final int activeCameraLimit;
     private final Map<UUID, Assignment> byCamera = new LinkedHashMap<>();
     private final Set<FailedPair> failedPairs = new LinkedHashSet<>();
 
     public RenderScheduler(DemandManager demand, MessageSink messages) {
+        this(demand, messages, CameraOverhaulContracts.MAX_ACTIVE_CAMERAS);
+    }
+
+    public RenderScheduler(DemandManager demand, MessageSink messages,
+                           int activeCameraLimit) {
         this.demand = Objects.requireNonNull(demand, "demand");
         this.messages = Objects.requireNonNull(messages, "messages");
+        if (activeCameraLimit < 1) {
+            throw new IllegalArgumentException("Active camera limit must be positive");
+        }
+        this.activeCameraLimit = activeCameraLimit;
     }
 
     public synchronized void reconcile(Map<UUID, CameraRef> cameras,
@@ -217,7 +227,7 @@ public final class RenderScheduler {
     }
 
     private Optional<Agent> selectAgent(CameraRef camera, Collection<Agent> agents) {
-        if (byCamera.size() >= CameraOverhaulContracts.MAX_ACTIVE_CAMERAS) {
+        if (byCamera.size() >= activeCameraLimit) {
             return Optional.empty();
         }
         return agents.stream()
@@ -247,7 +257,7 @@ public final class RenderScheduler {
                     return feed != null && feed.lifecycle() == FeedLifecycleState.RETAINING;
                 })
                 .filter(job -> (compatibleAgentHasRoom
-                        && byCamera.size() >= CameraOverhaulContracts.MAX_ACTIVE_CAMERAS)
+                        && byCamera.size() >= activeCameraLimit)
                         || compatibleAgents.contains(job.agentId()))
                 .findFirst().orElse(null);
         if (candidate == null) {
