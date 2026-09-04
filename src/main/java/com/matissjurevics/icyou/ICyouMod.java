@@ -17,6 +17,7 @@ import com.matissjurevics.icyou.render.auth.RenderAgentCommands;
 import com.matissjurevics.icyou.render.auth.ServerRenderAuthLifecycle;
 import com.matissjurevics.icyou.render.schedule.ServerRenderSchedulerLifecycle;
 import com.matissjurevics.icyou.render.scene.ServerSceneSnapshotLifecycle;
+import com.matissjurevics.icyou.render.scene.ServerSceneDeltaLifecycle;
 import com.matissjurevics.icyou.web.ServerWebLifecycle;
 import com.matissjurevics.icyou.web.auth.TerminalAuthCommands;
 import net.fabricmc.api.ModInitializer;
@@ -58,6 +59,7 @@ public class ICyouMod implements ModInitializer {
         ServerRenderAuthLifecycle.register();
         ServerRenderSchedulerLifecycle.register();
         ServerSceneSnapshotLifecycle.register();
+        ServerSceneDeltaLifecycle.register();
         TerminalAuthCommands.register();
         RenderAgentCommands.register();
 

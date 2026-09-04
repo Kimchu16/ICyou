@@ -103,6 +103,9 @@ it in the commit that changes a roadmap item's status or contract.
   digest assembly, conflicts, job binding, cancellation, and capture failure.
 - PR 17 child PR #25 CI passed and was squash-merged as `50aebf2`; its local and
   remote child branches were deleted.
+- PR 18 verification: `gradlew clean test build` passed locally with 115 tests;
+  focused tests cover codec bounds, defensive bytes, exact ordering, stale and
+  mismatched input, cancellation cleanup, and bounded client queues.
 - Current work: PR 18 live scene deltas are active on
   `feature/cam-18-scene-deltas`.
 
@@ -479,6 +482,24 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   cancellation cleanup, and scheduler capture failure.
 - [x] `gradlew clean test build` passes after the full PR 17 change (108 tests).
 - [x] Child PR CI passes and the PR is squash-merged into the integration branch.
+
+## PR 18 acceptance criteria
+
+- [x] Live changes are tied to the exact job revision and verified snapshot, with
+  a strictly increasing delta sequence.
+- [x] Block, block-entity, light, entity, time, and weather changes are collected
+  for the camera's 3x3 scene without idle full-chunk resends.
+- [x] Entity additions, removals, and changed vanilla bootstrap state exclude
+  authenticated render agents and remain atomic within one delta.
+- [x] The server sends at most one delta per job per tick and enforces a 512 KiB
+  payload limit plus bounded block and lighting journals.
+- [x] The client bounds unapplied deltas at 256 and fails the job on a sequence
+  gap, snapshot mismatch, or queue overflow so reassignment starts fresh.
+- [x] Metadata-only updates keep time and weather current at least every 20 ticks.
+- [x] `SCENE_DELTAS.md` documents contents, ordering, limits, failure recovery,
+  and the PR 19 remote-world boundary.
+- [x] `gradlew clean test build` passes with 115 focused protocol and ordering tests.
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 

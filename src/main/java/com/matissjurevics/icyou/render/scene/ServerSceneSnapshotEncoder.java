@@ -71,19 +71,26 @@ public final class ServerSceneSnapshotEncoder {
                 entity -> !authentication.isAuthenticated(entity.getUuid()));
         entities.sort(Comparator.comparingInt(Entity::getId));
         for (Entity entity : entities) {
-            EntityTrackerEntry tracker = new EntityTrackerEntry(world, entity, 1,
-                    true, ignored -> { });
-            tracker.sendPackets(agent, packets::add);
+            packets.addAll(entityPackets(world, entity, agent));
         }
 
-        byte[] stream = encodePackets(server, packets);
+        byte[] stream = ScenePacketStream.encode(encodePacketList(server, packets));
         return SceneSnapshotProtocol.fragment(assignment.jobId(), assignment.revision(),
                 sequence, assignment.camera(), world.getTime(), world.getTimeOfDay(),
                 world.getRainGradient(1.0f), world.getThunderGradient(1.0f), stream);
     }
 
-    private static byte[] encodePackets(MinecraftServer server,
-                                        List<Packet<? super ClientPlayPacketListener>> packets) {
+    static List<Packet<? super ClientPlayPacketListener>> entityPackets(
+            ServerWorld world, Entity entity, ServerPlayerEntity agent) {
+        List<Packet<? super ClientPlayPacketListener>> packets = new ArrayList<>();
+        EntityTrackerEntry tracker = new EntityTrackerEntry(world, entity, 1,
+                true, ignored -> { });
+        tracker.sendPackets(agent, packets::add);
+        return packets;
+    }
+
+    static List<byte[]> encodePacketList(MinecraftServer server,
+            List<Packet<? super ClientPlayPacketListener>> packets) {
         NetworkState<ClientPlayPacketListener> state = PlayStateFactories.S2C.bind(
                 RegistryByteBuf.makeFactory(server.getRegistryManager()));
         List<byte[]> encoded = new ArrayList<>(packets.size());
@@ -98,6 +105,11 @@ public final class ServerSceneSnapshotEncoder {
                 buffer.release();
             }
         }
-        return ScenePacketStream.encode(encoded);
+        return List.copyOf(encoded);
+    }
+
+    static byte[] encodePacket(MinecraftServer server,
+                               Packet<? super ClientPlayPacketListener> packet) {
+        return encodePacketList(server, List.of(packet)).getFirst();
     }
 }

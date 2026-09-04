@@ -4,6 +4,7 @@
     "package": "com.matissjurevics.icyou.mixin",
     "compatibilityLevel": "JAVA_21",
     "mixins": [
+        "ServerChunkManagerMixin",
         "ServerWorldMixin"
     ],
     "injectors": {

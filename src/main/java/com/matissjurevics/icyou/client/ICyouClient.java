@@ -7,6 +7,7 @@ import com.matissjurevics.icyou.ICyouMod;
 import com.matissjurevics.icyou.client.gui.TerminalGuiScreen;
 import com.matissjurevics.icyou.client.agent.ClientRenderAgentLifecycle;
 import com.matissjurevics.icyou.client.agent.ClientSceneSnapshotLifecycle;
+import com.matissjurevics.icyou.client.agent.ClientSceneDeltaLifecycle;
 import com.matissjurevics.icyou.client.hud.WirelessHud;
 import com.matissjurevics.icyou.client.render.RttFeedManager;
 import com.matissjurevics.icyou.client.render.ScreenFeedRenderer;
@@ -73,6 +74,7 @@ public class ICyouClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(RttFeedManager::tick);
         ClientRenderAgentLifecycle.register();
         ClientSceneSnapshotLifecycle.register();
+        ClientSceneDeltaLifecycle.register();
 
         ICyouMod.LOGGER.info("ICyou client initialized");
     }
