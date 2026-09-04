@@ -106,8 +106,9 @@ it in the commit that changes a roadmap item's status or contract.
 - PR 18 verification: `gradlew clean test build` passed locally with 115 tests;
   focused tests cover codec bounds, defensive bytes, exact ordering, stale and
   mismatched input, cancellation cleanup, and bounded client queues.
-- Current work: PR 18 live scene deltas are active on
-  `feature/cam-18-scene-deltas`.
+- PR 18 child PR #26 CI passed and was squash-merged as `e74e04f`; its local and
+  remote child branches were deleted.
+- Current work: PR 19 remote client world is active.
 
 ## Roadmap and dependency status
 
@@ -133,8 +134,8 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 15 | Render scheduler | DONE | 11, 13, 14 |
 | 16 | Render agent | DONE | 15 |
 | 17 | Scene snapshots | DONE | 15 |
-| 18 | Scene deltas | ACTIVE | 17 |
-| 19 | Remote client world | BLOCKED | 17, 18 |
+| 18 | Scene deltas | DONE | 17 |
+| 19 | Remote client world | ACTIVE | 17, 18 |
 | 20 | Offscreen renderer | BLOCKED | 19 |
 | 21 | Video delivery | BLOCKED | 9, 15, 20 |
 | 22 | Audio scene | BLOCKED | 18, 19 |
@@ -499,7 +500,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 - [x] `SCENE_DELTAS.md` documents contents, ordering, limits, failure recovery,
   and the PR 19 remote-world boundary.
 - [x] `gradlew clean test build` passes with 115 focused protocol and ordering tests.
-- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
+- [x] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
