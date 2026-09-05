@@ -154,7 +154,9 @@ it in the commit that changes a roadmap item's status or contract.
 - PR 27 local verification: `gradlew clean test build nativeSmokeTest` passes
   with 168 tests, release-JAR inspection, and Windows x64 native startup. The
   verified artifact is `icyou-0.3.0.jar` and its Fabric metadata reports 0.3.0.
-- Current work: PR 27 release is active.
+- PR 27 child PR #35 passed all seven package, server, and native CI jobs and was
+  squash-merged as `bcb6eb1`; its local and remote child branches were deleted.
+- Current work: the 0.3.0 roadmap is complete; final integration CI is pending.
 
 ## Roadmap and dependency status
 
@@ -189,7 +191,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 24 | Admin limits | DONE | 10, 15, 21, 23 |
 | 25 | Observability | DONE | 24 |
 | 26 | Deployment tests | DONE | 4, 16, 23, 25 |
-| 27 | Release | ACTIVE | 26 |
+| 27 | Release | DONE | 26 |
 
 ## PR 0 acceptance criteria
 
@@ -745,7 +747,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 - [x] No stale public link or 1.0.0 release instruction remains.
 - [x] `gradlew clean test build nativeSmokeTest` passes locally and produces a
   verified `icyou-0.3.0.jar`.
-- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
+- [x] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
