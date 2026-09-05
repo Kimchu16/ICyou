@@ -146,6 +146,9 @@ it in the commit that changes a roadmap item's status or contract.
   short operator output.
 - PR 25 child PR #33 CI passed and was squash-merged as `78fe443`; its local and
   remote child branches were deleted.
+- PR 26 local verification: `gradlew clean test build nativeSmokeTest` passes;
+  168 unit tests, release-JAR inspection, and Windows x64 native startup are
+  green, and the server smoke script passes Bash syntax validation.
 - Current work: PR 26 deployment tests is active.
 
 ## Roadmap and dependency status
@@ -700,6 +703,29 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   privacy boundaries, and the relationship to `/icyou limits`.
 - [x] `gradlew clean test build` passes after the full PR 25 change (168 tests).
 - [x] Child PR CI passes and the PR is squash-merged into the integration branch.
+
+## PR 26 acceptance criteria
+
+- [x] Gradle `check` opens the remapped release JAR and verifies resolved Fabric
+  metadata, common/client entrypoints, the WebRTC base library, and all six
+  supported native classifier JARs and payloads.
+- [x] A dedicated native smoke task starts and disposes a peer factory, shared
+  clock, custom video source, and custom audio source.
+- [ ] Required CI executes native startup on Windows x64, Linux x64/ARM64, and
+  macOS Intel/ARM64; Linux ARM32 remains an artifact-presence gate because no
+  standard hosted runner is available.
+- [x] A bounded headless deployment script boots a real Fabric dedicated server,
+  verifies Minecraft readiness, migration, limits, and observability, then
+  requires a clean `stop`.
+- [x] Current supported GitHub actions and explicit runner labels make the
+  deployment matrix readable and prevent accidental platform drift.
+- [x] Failure reports preserve Gradle native-test output and the dedicated-server
+  log as CI artifacts.
+- [x] `DEPLOYMENT_TESTS.md` documents local checks, CI coverage, timeouts,
+  assertions, artifacts, and the explicit Linux ARM32 limitation.
+- [x] `gradlew clean test build nativeSmokeTest` passes locally after the full
+  PR 26 change.
+- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
