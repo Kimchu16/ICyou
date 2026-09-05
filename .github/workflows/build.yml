@@ -1,4 +1,4 @@
-# Builds the ICyou Fabric mod and, when a version tag (e.g. v1.0.0) is pushed:
+# Builds the ICyou Fabric mod and, when a version tag (e.g. v0.3.0) is pushed:
 #   1. Attaches the built jar to a GitHub Release.
 #   2. Auto-uploads the jar to CurseForge when the CURSEFORGE_API_TOKEN and
 #      CURSEFORGE_PROJECT_ID repository secrets are configured.
@@ -59,7 +59,7 @@ jobs:
         run: |
           chmod +x gradlew
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            # Match the built artifact name to the tag (v1.0.0 -> 1.0.0).
+            # Match the built artifact name to the tag (v0.3.0 -> 0.3.0).
             ./gradlew build -Pmod_version="${GITHUB_REF_NAME#v}" --no-daemon
           else
             ./gradlew build --no-daemon
@@ -90,7 +90,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ steps.jar.outputs.path }}
-          name: ICyou ${{ steps.jar.outputs.name }}
+          name: ICyou ${{ github.ref_name }}
           generate_release_notes: true
 
       - name: Generate CurseForge changelog
@@ -107,9 +107,9 @@ jobs:
             else
               git log --oneline -20
             fi
-          } > CHANGELOG.md
+          } > build/curseforge-changelog.md
           echo "changelog<<CFEOF" >> "$GITHUB_OUTPUT"
-          cat CHANGELOG.md >> "$GITHUB_OUTPUT"
+          cat build/curseforge-changelog.md >> "$GITHUB_OUTPUT"
           echo "CFEOF" >> "$GITHUB_OUTPUT"
 
       - name: Upload to CurseForge
@@ -122,7 +122,7 @@ jobs:
           file_path: ${{ steps.jar.outputs.path }}
           changelog: ${{ steps.changelog.outputs.changelog }}
           changelog_type: markdown
-          display_name: ICyou ${{ steps.jar.outputs.name }}
+          display_name: ICyou ${{ github.ref_name }}
           game_versions: "${{ vars.CF_GAME_VERSIONS || 'Minecraft 1.21.1:1.21.1,Java 21,Fabric' }}"
           release_type: release
           relations: fabric-api:requiredDependency
