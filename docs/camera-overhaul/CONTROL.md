@@ -149,7 +149,9 @@ it in the commit that changes a roadmap item's status or contract.
 - PR 26 local verification: `gradlew clean test build nativeSmokeTest` passes;
   168 unit tests, release-JAR inspection, and Windows x64 native startup are
   green, and the server smoke script passes Bash syntax validation.
-- Current work: PR 26 deployment tests is active.
+- PR 26 child PR #34 passed all seven package, server, and native CI jobs and was
+  squash-merged as `10982fd`; its local and remote child branches were deleted.
+- Current work: PR 27 release is active.
 
 ## Roadmap and dependency status
 
@@ -183,8 +185,8 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
 | 23 | WebRTC A/V | DONE | 21, 22 |
 | 24 | Admin limits | DONE | 10, 15, 21, 23 |
 | 25 | Observability | DONE | 24 |
-| 26 | Deployment tests | ACTIVE | 4, 16, 23, 25 |
-| 27 | Release | BLOCKED | 26 |
+| 26 | Deployment tests | DONE | 4, 16, 23, 25 |
+| 27 | Release | ACTIVE | 26 |
 
 ## PR 0 acceptance criteria
 
@@ -711,7 +713,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   supported native classifier JARs and payloads.
 - [x] A dedicated native smoke task starts and disposes a peer factory, shared
   clock, custom video source, and custom audio source.
-- [ ] Required CI executes native startup on Windows x64, Linux x64/ARM64, and
+- [x] Required CI executes native startup on Windows x64, Linux x64/ARM64, and
   macOS Intel/ARM64; Linux ARM32 remains an artifact-presence gate because no
   standard hosted runner is available.
 - [x] A bounded headless deployment script boots a real Fabric dedicated server,
@@ -725,7 +727,7 @@ Status values: `DONE`, `ACTIVE`, `READY` (all dependencies done), `BLOCKED`.
   assertions, artifacts, and the explicit Linux ARM32 limitation.
 - [x] `gradlew clean test build nativeSmokeTest` passes locally after the full
   PR 26 change.
-- [ ] Child PR CI passes and the PR is squash-merged into the integration branch.
+- [x] Child PR CI passes and the PR is squash-merged into the integration branch.
 
 ## Version milestones
 
