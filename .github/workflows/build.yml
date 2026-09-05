@@ -187,6 +187,13 @@ jobs:
       - name: Set up Gradle (with cache)
         uses: gradle/actions/setup-gradle@v6
 
+      - name: Install Linux native dependencies
+        if: startsWith(matrix.runner, 'ubuntu-')
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libpulse0
+
       - name: Start and dispose the native runtime
         shell: bash
         run: |

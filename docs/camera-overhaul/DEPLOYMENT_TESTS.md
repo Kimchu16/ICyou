@@ -45,7 +45,9 @@ synchronization clock, custom video source, and custom audio source on:
 
 GitHub does not provide a standard hosted Linux ARM32 runner. ARM32 remains a
 packaging gate, while the five available desktop/server targets are execution
-gates. Native test reports are uploaded on failure.
+gates. Linux render agents require the PulseAudio client runtime
+(`libpulse.so.0`; package `libpulse0` on Ubuntu), which CI installs explicitly
+before native startup. Native test reports are uploaded on failure.
 
 For a local check, run `gradlew verifyReleaseJar nativeSmokeTest`. The ordinary
 unit suite keeps native startup disabled so headless unit environments do not
