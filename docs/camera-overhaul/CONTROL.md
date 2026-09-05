@@ -156,7 +156,9 @@ it in the commit that changes a roadmap item's status or contract.
   verified artifact is `icyou-0.3.0.jar` and its Fabric metadata reports 0.3.0.
 - PR 27 child PR #35 passed all seven package, server, and native CI jobs and was
   squash-merged as `bcb6eb1`; its local and remote child branches were deleted.
-- Current work: the 0.3.0 roadmap is complete; final integration CI is pending.
+- Final integration CI passed all seven jobs at `cffbeb9`.
+- Current work: the 0.3.0 roadmap is complete and awaits a reviewed merge to
+  `main`, followed by the separately approved release tag.
 
 ## Roadmap and dependency status
 
