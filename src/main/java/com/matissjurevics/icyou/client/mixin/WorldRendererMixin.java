@@ -1,6 +1,6 @@
 package com.matissjurevics.icyou.client.mixin;
 
-import com.matissjurevics.icyou.client.render.RttFeedManager;
+import com.matissjurevics.icyou.client.render.OffscreenRenderContext;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.Framebuffer;
@@ -18,7 +18,7 @@ public abstract class WorldRendererMixin {
             target = "Lnet/minecraft/client/MinecraftClient;getFramebuffer()"
                     + "Lnet/minecraft/client/gl/Framebuffer;"))
     private Framebuffer icyou$useCameraFramebuffer(MinecraftClient client) {
-        Framebuffer cameraTarget = RttFeedManager.currentRenderTarget();
+        Framebuffer cameraTarget = OffscreenRenderContext.target();
         return cameraTarget != null ? cameraTarget : client.getFramebuffer();
     }
 }

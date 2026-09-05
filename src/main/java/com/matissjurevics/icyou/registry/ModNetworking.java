@@ -6,7 +6,16 @@ import com.matissjurevics.icyou.network.DeviceSubscriptions;
 import com.matissjurevics.icyou.network.DeviceSubscribeC2SPayload;
 import com.matissjurevics.icyou.network.EnterCameraViewS2CPayload;
 import com.matissjurevics.icyou.network.FeedDataS2CPayload;
-import com.matissjurevics.icyou.terminal.DeviceRegistry;
+import com.matissjurevics.icyou.device.GlobalDeviceRegistry;
+import com.matissjurevics.icyou.render.protocol.RenderControlC2SPayload;
+import com.matissjurevics.icyou.render.protocol.RenderControlS2CPayload;
+import com.matissjurevics.icyou.render.scene.SceneSnapshotS2CPayload;
+import com.matissjurevics.icyou.render.scene.SceneDeltaS2CPayload;
+import com.matissjurevics.icyou.render.video.VideoFrameC2SPayload;
+import com.matissjurevics.icyou.render.audio.AudioSceneS2CPayload;
+import com.matissjurevics.icyou.render.webrtc.WebRtcAnswerC2SPayload;
+import com.matissjurevics.icyou.render.webrtc.WebRtcCloseS2CPayload;
+import com.matissjurevics.icyou.render.webrtc.WebRtcOfferS2CPayload;
 
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -25,38 +34,87 @@ public final class ModNetworking {
                 EnterCameraViewS2CPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(DeviceSnapshotS2CPayload.ID,
                 DeviceSnapshotS2CPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(RenderControlS2CPayload.ID,
+                RenderControlS2CPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(SceneSnapshotS2CPayload.ID,
+                SceneSnapshotS2CPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(SceneDeltaS2CPayload.ID,
+                SceneDeltaS2CPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(AudioSceneS2CPayload.ID,
+                AudioSceneS2CPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(WebRtcOfferS2CPayload.ID,
+                WebRtcOfferS2CPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(WebRtcCloseS2CPayload.ID,
+                WebRtcCloseS2CPayload.CODEC);
 
         // --- C2S codecs ---
         PayloadTypeRegistry.playC2S().register(DeviceActionC2SPayload.ID,
                 DeviceActionC2SPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(DeviceSubscribeC2SPayload.ID,
                 DeviceSubscribeC2SPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(RenderControlC2SPayload.ID,
+                RenderControlC2SPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(VideoFrameC2SPayload.ID,
+                VideoFrameC2SPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(WebRtcAnswerC2SPayload.ID,
+                WebRtcAnswerC2SPayload.CODEC);
 
         // --- device mutations from the terminal GUI ---
         ServerPlayNetworking.registerGlobalReceiver(DeviceActionC2SPayload.ID, (payload, ctx) -> {
-            ServerWorld world = ctx.player().getServerWorld();
-            DeviceRegistry reg = DeviceRegistry.get(world);
-            boolean ok = switch (payload.action()) {
-                case DeviceActionC2SPayload.ACTION_ASSIGN ->
-                        reg.assign(payload.id(), payload.auxId());
-                case DeviceActionC2SPayload.ACTION_RENAME ->
-                        reg.rename(payload.targetType(), payload.id(), payload.name());
-                case DeviceActionC2SPayload.ACTION_REMOVE -> {
-                    switch (payload.targetType()) {
-                        case DeviceActionC2SPayload.TYPE_CAMERA ->
-                                reg.removeCameraById(payload.id());
-                        case DeviceActionC2SPayload.TYPE_SCREEN ->
-                                reg.removeScreenById(payload.id());
-                        case DeviceActionC2SPayload.TYPE_WIRELESS ->
-                                reg.removeWireless(payload.id());
-                        default -> { }
-                    }
-                    yield true;
+            var server = ctx.player().getServer();
+            GlobalDeviceRegistry reg = GlobalDeviceRegistry.get(server);
+            boolean ok = false;
+            try {
+                var terminal = reg.terminal(payload.terminal().deviceId())
+                        .filter(entry -> entry.ref().equals(payload.terminal())).orElseThrow();
+                if (!reg.canManageTerminal(terminal.ref().deviceId(), ctx.player().getUuid(),
+                        ctx.player().hasPermissionLevel(2))) {
+                    return;
                 }
-                default -> false;
-            };
+                ok = switch (payload.action()) {
+                    case DeviceActionC2SPayload.ACTION_ASSIGN -> {
+                        var screen = reg.screen(payload.id()).orElseThrow();
+                        if (!screen.terminalId().equals(terminal.ref().deviceId())) {
+                            yield false;
+                        }
+                        reg.assignCamera(payload.id(), payload.auxId());
+                        yield true;
+                    }
+                    case DeviceActionC2SPayload.ACTION_RENAME -> {
+                        if (payload.targetType() == DeviceActionC2SPayload.TYPE_CAMERA
+                                && reg.camera(payload.id()).filter(entry -> entry.terminalId()
+                                .equals(terminal.ref().deviceId())).isPresent()) {
+                            reg.renameCamera(payload.id(), payload.name());
+                            yield true;
+                        }
+                        if (payload.targetType() == DeviceActionC2SPayload.TYPE_SCREEN
+                                && reg.screen(payload.id()).filter(entry -> entry.terminalId()
+                                .equals(terminal.ref().deviceId())).isPresent()) {
+                            reg.renameScreen(payload.id(), payload.name());
+                            yield true;
+                        }
+                        yield false;
+                    }
+                    case DeviceActionC2SPayload.ACTION_REMOVE -> {
+                        if (payload.targetType() == DeviceActionC2SPayload.TYPE_CAMERA
+                                && reg.camera(payload.id()).filter(entry -> entry.terminalId()
+                                .equals(terminal.ref().deviceId())).isPresent()) {
+                            yield reg.removeCamera(payload.id());
+                        }
+                        if (payload.targetType() == DeviceActionC2SPayload.TYPE_SCREEN
+                                && reg.screen(payload.id()).filter(entry -> entry.terminalId()
+                                .equals(terminal.ref().deviceId())).isPresent()) {
+                            yield reg.removeScreen(payload.id());
+                        }
+                        yield false;
+                    }
+                    default -> false;
+                };
+            } catch (IllegalArgumentException | java.util.NoSuchElementException ignored) {
+                // Invalid or stale client reference; ignore the mutation.
+            }
             if (ok) {
-                DeviceSubscriptions.broadcast(world, payload.terminal());
+                DeviceSubscriptions.broadcast(server, payload.terminal().deviceId());
             }
         });
 
@@ -64,12 +122,20 @@ public final class ModNetworking {
         ServerPlayNetworking.registerGlobalReceiver(DeviceSubscribeC2SPayload.ID,
                 (payload, ctx) -> {
                     var player = ctx.player();
+                    var registry = GlobalDeviceRegistry.get(player.getServer());
+                    var terminal = registry.terminal(payload.terminal().deviceId())
+                            .filter(entry -> entry.ref().equals(payload.terminal()));
+                    if (terminal.isEmpty() || !registry.canManageTerminal(
+                            payload.terminal().deviceId(), player.getUuid(),
+                            player.hasPermissionLevel(2))) {
+                        return;
+                    }
                     if (payload.subscribe()) {
-                        DeviceSubscriptions.subscribe(payload.terminal(), player.getUuid());
+                        DeviceSubscriptions.subscribe(payload.terminal().deviceId(), player.getUuid());
                         ServerPlayNetworking.send(player, DeviceSubscriptions.buildSnapshot(
-                                player.getServerWorld(), payload.terminal(), false));
+                                player.getServer(), payload.terminal(), false));
                     } else {
-                        DeviceSubscriptions.unsubscribe(payload.terminal(), player.getUuid());
+                        DeviceSubscriptions.unsubscribe(payload.terminal().deviceId(), player.getUuid());
                     }
                 });
 

@@ -1,15 +1,20 @@
 package com.matissjurevics.icyou.item;
 
 import com.matissjurevics.icyou.client.hud.WirelessHud;
+import com.matissjurevics.icyou.device.GlobalDeviceRegistry;
+import com.matissjurevics.icyou.device.TerminalRef;
 import com.matissjurevics.icyou.registry.ModDataComponentTypes;
 import com.matissjurevics.icyou.terminal.CameraTerminalBlock;
-import com.matissjurevics.icyou.terminal.DeviceRegistry;
+import com.matissjurevics.icyou.terminal.CameraTerminalBlockEntity;
+import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.ItemUsageContext;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
@@ -36,12 +41,29 @@ public class PortableScreenItem extends Item {
 
         if (world.getBlockState(pos).getBlock() instanceof CameraTerminalBlock) {
             if (!world.isClient) {
-                var reg = DeviceRegistry.get((ServerWorld) world);
-                var dev = reg.addWireless(pos);
-                stack.set(ModDataComponentTypes.LINKED_TERMINAL, pos.toImmutable());
-                stack.set(ModDataComponentTypes.WIRELESS_ID, dev.id());
+                ServerWorld serverWorld = (ServerWorld) world;
+                if (!(world.getBlockEntity(pos) instanceof CameraTerminalBlockEntity terminal)) {
+                    return ActionResult.FAIL;
+                }
+                UUID playerId = player == null ? null : player.getUuid();
+                TerminalRef terminalRef = terminal.initialize(serverWorld, playerId);
+                boolean operator = player instanceof ServerPlayerEntity serverPlayer
+                        && serverPlayer.hasPermissionLevel(2);
+                if (player == null || !GlobalDeviceRegistry.get(serverWorld.getServer())
+                        .canManageTerminal(terminalRef.deviceId(), player.getUuid(), operator)) {
+                    if (player != null) {
+                        player.sendMessage(Text.literal(
+                                "Only the terminal owner or an operator can pair screens."), false);
+                    }
+                    return ActionResult.FAIL;
+                }
+                UUID wirelessId = UUID.randomUUID();
+                stack.set(ModDataComponentTypes.LINKED_TERMINAL, terminalRef);
+                stack.set(ModDataComponentTypes.WIRELESS_ID, wirelessId);
+                stack.remove(ModDataComponentTypes.LEGACY_LINKED_TERMINAL);
+                stack.remove(ModDataComponentTypes.LEGACY_WIRELESS_ID);
                 if (player != null) {
-                    player.sendMessage(Text.literal("Paired as " + dev.name()), true);
+                    player.sendMessage(Text.literal("Portable screen paired"), true);
                 }
             }
             return ActionResult.SUCCESS;
@@ -54,7 +76,7 @@ public class PortableScreenItem extends Item {
         ItemStack stack = user.getStackInHand(hand);
 
         if (world.isClient) {
-            BlockPos terminal = stack.get(ModDataComponentTypes.LINKED_TERMINAL);
+            TerminalRef terminal = stack.get(ModDataComponentTypes.LINKED_TERMINAL);
             if (terminal != null) {
                 WirelessHud.toggle(terminal);
                 return TypedActionResult.success(stack, true);
@@ -62,13 +84,47 @@ public class PortableScreenItem extends Item {
             return TypedActionResult.pass(stack);
         }
 
-        // Server side: validate pairing.
-        BlockPos terminal = stack.get(ModDataComponentTypes.LINKED_TERMINAL);
+        // Server side: upgrade a 0.2.0 position/int link, then validate pairing.
+        if (world instanceof ServerWorld serverWorld) {
+            upgradeLegacyLink(stack, serverWorld);
+        }
+        TerminalRef terminal = stack.get(ModDataComponentTypes.LINKED_TERMINAL);
         if (terminal == null) {
             user.sendMessage(Text.literal(
                     "Not paired — sneak-use this screen on a camera terminal first."), false);
             return TypedActionResult.fail(stack);
         }
+        if (world instanceof ServerWorld serverWorld
+                && GlobalDeviceRegistry.get(serverWorld.getServer())
+                .terminal(terminal.deviceId()).filter(entry -> entry.ref().equals(terminal)).isEmpty()) {
+            user.sendMessage(Text.literal("Paired terminal is unavailable."), false);
+            return TypedActionResult.fail(stack);
+        }
         return TypedActionResult.success(stack, false);
+    }
+
+    private static void upgradeLegacyLink(ItemStack stack, ServerWorld world) {
+        if (stack.get(ModDataComponentTypes.LINKED_TERMINAL) != null) {
+            return;
+        }
+        BlockPos position = stack.get(ModDataComponentTypes.LEGACY_LINKED_TERMINAL);
+        if (position == null) {
+            return;
+        }
+        GlobalDeviceRegistry registry = GlobalDeviceRegistry.get(world.getServer());
+        registry.deviceAt(new com.matissjurevics.icyou.device.DeviceLocation(
+                        world.getRegistryKey(), position))
+                .filter(TerminalRef.class::isInstance)
+                .map(TerminalRef.class::cast)
+                .ifPresent(terminal -> {
+                    stack.set(ModDataComponentTypes.LINKED_TERMINAL, terminal);
+                    Integer legacyId = stack.get(ModDataComponentTypes.LEGACY_WIRELESS_ID);
+                    String source = "icyou:0.2.0:wireless:" + world.getRegistryKey().getValue()
+                            + ':' + (legacyId == null ? 0 : legacyId) + ':' + position.asLong();
+                    stack.set(ModDataComponentTypes.WIRELESS_ID, UUID.nameUUIDFromBytes(
+                            source.getBytes(StandardCharsets.UTF_8)));
+                    stack.remove(ModDataComponentTypes.LEGACY_LINKED_TERMINAL);
+                    stack.remove(ModDataComponentTypes.LEGACY_WIRELESS_ID);
+                });
     }
 }

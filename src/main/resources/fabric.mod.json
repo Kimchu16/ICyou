@@ -3,19 +3,20 @@
     "id": "icyou",
     "version": "${version}",
     "name": "ICyou",
-    "description": "ICyou adds a working CCTV surveillance system to Minecraft: place cameras, view their live feed on screens and terminals, cycle channels, and track mobs via network blips.",
+    "description": "A secure CCTV system with live same-dimension camera feeds, in-game screens, and authenticated remote viewing.",
     "authors": [
         "MatissJurevics"
     ],
     "contact": {
-        "homepage": "https://github.com/MatissJurevics/ICyou",
-        "sources": "https://github.com/MatissJurevics/ICyou",
-        "issues": "https://github.com/MatissJurevics/ICyou/issues"
+        "homepage": "https://github.com/Kimchu16/ICyou",
+        "sources": "https://github.com/Kimchu16/ICyou",
+        "issues": "https://github.com/Kimchu16/ICyou/issues"
     },
     "license": "MIT",
     "icon": "assets/icyou/icon.png",
     "environment": "*",
     "mixins": [
+        "icyou.mixins.json",
         "icyou.client-mixins.json"
     ],
     "entrypoints": {

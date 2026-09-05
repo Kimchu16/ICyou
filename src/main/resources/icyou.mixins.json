@@ -1,0 +1,13 @@
+{
+    "required": true,
+    "minVersion": "0.8",
+    "package": "com.matissjurevics.icyou.mixin",
+    "compatibilityLevel": "JAVA_21",
+    "mixins": [
+        "ServerChunkManagerMixin",
+        "ServerWorldMixin"
+    ],
+    "injectors": {
+        "defaultRequire": 1
+    }
+}

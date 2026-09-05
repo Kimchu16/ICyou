@@ -27,6 +27,21 @@ public class DeviceRegistry extends PersistentState {
     public record ScreenDevice(int id, String name, BlockPos terminal, BlockPos pos,
                                int assignedCamId) {}
     public record WirelessDevice(int id, String name, BlockPos terminal) {}
+    public record LegacySnapshot(List<CameraDevice> cameras, List<ScreenDevice> screens,
+                                 List<WirelessDevice> wireless,
+                                 Map<BlockPos, String> slugs) {
+        public LegacySnapshot {
+            cameras = List.copyOf(cameras);
+            screens = List.copyOf(screens);
+            wireless = List.copyOf(wireless);
+            slugs = Map.copyOf(slugs);
+        }
+
+        public boolean isEmpty() {
+            return cameras.isEmpty() && screens.isEmpty() && wireless.isEmpty()
+                    && slugs.isEmpty();
+        }
+    }
 
     private static final String KEY = "icyou_devices";
 
@@ -237,6 +252,11 @@ public class DeviceRegistry extends PersistentState {
             terms.add(w.terminal());
         }
         return terms;
+    }
+
+    /** Immutable input for the one-time 0.2.0 migration. */
+    public LegacySnapshot migrationSnapshot() {
+        return new LegacySnapshot(cameras, screens, wireless, slugByTerminal);
     }
 
     // --- persistence ---

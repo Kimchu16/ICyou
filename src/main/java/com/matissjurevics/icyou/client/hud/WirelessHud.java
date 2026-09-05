@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.matissjurevics.icyou.client.CameraViewController;
 import com.matissjurevics.icyou.client.ClientDeviceCache;
+import com.matissjurevics.icyou.device.TerminalRef;
 import com.matissjurevics.icyou.network.DeviceSnapshotS2CPayload;
 import com.matissjurevics.icyou.network.DeviceSubscribeC2SPayload;
 import com.matissjurevics.icyou.network.EnterCameraViewS2CPayload;
@@ -16,7 +17,6 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.Text;
-import net.minecraft.util.math.BlockPos;
 
 import org.lwjgl.glfw.GLFW;
 
@@ -29,18 +29,18 @@ public final class WirelessHud {
     private WirelessHud() {}
 
     private static boolean open;
-    private static BlockPos terminal;
+    private static TerminalRef terminal;
 
     public static boolean isOpen() {
         return open;
     }
 
-    public static void toggle(BlockPos terminalPos) {
+    public static void toggle(TerminalRef terminalRef) {
         if (open) {
             close();
         } else {
             open = true;
-            terminal = terminalPos.toImmutable();
+            terminal = terminalRef;
             ClientPlayNetworking.send(new DeviceSubscribeC2SPayload(terminal, true));
         }
     }
@@ -77,7 +77,7 @@ public final class WirelessHud {
                     var cam = cams.get(i);
                     if (cam.online()) {
                         CameraViewController.begin(List.of(new EnterCameraViewS2CPayload.CamRef(
-                                cam.pos(), cam.facingId())));
+                                cam.ref(), cam.facingId())));
                     }
                     break;
                 }

@@ -5,6 +5,7 @@
     "compatibilityLevel": "JAVA_21",
     "client": [
         "CameraMixin",
+        "ClientPlayNetworkHandlerAccessor",
         "GameRendererMixin",
         "MinecraftClientMixin",
         "WorldRendererMixin"

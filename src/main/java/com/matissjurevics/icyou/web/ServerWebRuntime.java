@@ -1,0 +1,294 @@
+package com.matissjurevics.icyou.web;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+
+/** Owns one server-side listener and closes every resource deterministically. */
+public final class ServerWebRuntime implements AutoCloseable {
+
+    public static final int MAX_REQUEST_BODY_BYTES = 128 * 1024;
+
+    public enum State { STOPPED, STARTING, RUNNING, STOPPING, FAILED }
+
+    private final Consumer<Throwable> failureHandler;
+    private final Set<Socket> openClients = ConcurrentHashMap.newKeySet();
+    private volatile State state = State.STOPPED;
+    private ServerSocket socket;
+    private ExecutorService clients;
+    private Thread acceptThread;
+    private WebRequestHandler requestHandler;
+
+    public ServerWebRuntime(Consumer<Throwable> failureHandler) {
+        this.failureHandler = failureHandler == null ? ignored -> { } : failureHandler;
+    }
+
+    public synchronized boolean start(WebServerConfig config, WebRequestHandler handler) {
+        if (state == State.RUNNING) {
+            return true;
+        }
+        if (state == State.STARTING || state == State.STOPPING) {
+            return false;
+        }
+        state = State.STARTING;
+        requestHandler = Objects.requireNonNull(handler, "handler");
+        if (!config.enabled()) {
+            state = State.STOPPED;
+            return false;
+        }
+        try {
+            ServerSocket listener = new ServerSocket();
+            listener.setReuseAddress(true);
+            listener.bind(new InetSocketAddress(config.bind(), config.port()));
+            socket = listener;
+            clients = Executors.newVirtualThreadPerTaskExecutor();
+            state = State.RUNNING;
+            acceptThread = Thread.ofPlatform().daemon().name("icyou-web-accept")
+                    .start(this::acceptLoop);
+            return true;
+        } catch (IOException | RuntimeException error) {
+            state = State.FAILED;
+            closeResources();
+            failureHandler.accept(error);
+            return false;
+        }
+    }
+
+    public State state() {
+        return state;
+    }
+
+    public synchronized Optional<InetSocketAddress> boundAddress() {
+        return socket == null ? Optional.empty()
+                : Optional.of((InetSocketAddress) socket.getLocalSocketAddress());
+    }
+
+    private void acceptLoop() {
+        try {
+            while (state == State.RUNNING) {
+                Socket client = socket.accept();
+                openClients.add(client);
+                ExecutorService executor = clients;
+                if (executor != null) {
+                    try {
+                        executor.execute(() -> handle(client));
+                    } catch (RuntimeException rejected) {
+                        client.close();
+                        openClients.remove(client);
+                    }
+                } else {
+                    client.close();
+                    openClients.remove(client);
+                }
+            }
+        } catch (IOException error) {
+            if (state == State.RUNNING) {
+                state = State.FAILED;
+                closeResources();
+                failureHandler.accept(error);
+            }
+        }
+    }
+
+    private void handle(Socket socket) {
+        try (Socket client = socket;
+             OutputStream output = client.getOutputStream()) {
+            client.setSoTimeout(5_000);
+            InputStream input = client.getInputStream();
+            String request = readAsciiLine(input, 2_048);
+            Map<String, String> headers = readHeaders(input);
+            byte[] body = readBody(input, headers);
+            WebResponse response = route(request, headers, body);
+            writeResponse(output, response);
+            output.flush();
+        } catch (IOException ignored) {
+            // A disconnected health-check client needs no server action.
+        } finally {
+            openClients.remove(socket);
+        }
+    }
+
+    private WebResponse route(String requestLine, Map<String, String> headers,
+                              byte[] body) {
+        if (requestLine == null || headers == null || body == null) {
+            return WebResponse.json(400, "{\"error\":\"bad_request\"}");
+        }
+        String[] parts = requestLine.split(" ", 3);
+        if (parts.length != 3 || !parts[2].startsWith("HTTP/")) {
+            return WebResponse.notFound();
+        }
+        try {
+            if (parts[0].equals("OPTIONS")) {
+                return new WebResponse(204, "text/plain; charset=utf-8",
+                        new byte[0], Map.of());
+            }
+            WebResponse response = requestHandler.handle(
+                    new WebRequest(parts[0], parts[1], headers, body));
+            return response == null ? WebResponse.notFound() : response;
+        } catch (RuntimeException error) {
+            failureHandler.accept(error);
+            return WebResponse.json(500, "{\"error\":\"internal_error\"}");
+        }
+    }
+
+    private static void writeResponse(OutputStream output, WebResponse response)
+            throws IOException {
+        byte[] body = response.body();
+        StringBuilder headers = new StringBuilder("HTTP/1.1 ")
+                .append(response.status()).append(' ').append(reason(response.status()))
+                .append("\r\nContent-Type: ").append(response.contentType()).append("\r\n");
+        if (!response.streaming()) {
+            headers.append("Content-Length: ").append(body.length).append("\r\n");
+        }
+        headers.append("Connection: close\r\n");
+        headers.append("Access-Control-Allow-Origin: *\r\n")
+                .append("Access-Control-Allow-Headers: Authorization, Content-Type\r\n")
+                .append("Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS\r\n")
+                .append("Access-Control-Max-Age: 600\r\n");
+        response.headers().forEach((name, value) -> headers.append(name).append(": ")
+                .append(value).append("\r\n"));
+        headers.append("\r\n");
+        output.write(headers.toString().getBytes(StandardCharsets.US_ASCII));
+        if (response.streaming()) {
+            response.writeStreamingBody(output);
+        } else {
+            output.write(body);
+        }
+    }
+
+    private static String reason(int status) {
+        return switch (status) {
+            case 200 -> "OK";
+            case 202 -> "Accepted";
+            case 204 -> "No Content";
+            case 400 -> "Bad Request";
+            case 401 -> "Unauthorized";
+            case 403 -> "Forbidden";
+            case 404 -> "Not Found";
+            case 405 -> "Method Not Allowed";
+            case 429 -> "Too Many Requests";
+            case 500 -> "Internal Server Error";
+            default -> "Response";
+        };
+    }
+
+    private static Map<String, String> readHeaders(InputStream input) throws IOException {
+        Map<String, String> headers = new LinkedHashMap<>();
+        int remaining = 8_192;
+        for (int count = 0; count < 32; count++) {
+            String line = readAsciiLine(input, Math.min(2_048, remaining));
+            if (line == null) {
+                return null;
+            }
+            remaining -= line.length() + 2;
+            if (line.isEmpty()) {
+                return Map.copyOf(headers);
+            }
+            int separator = line.indexOf(':');
+            if (separator <= 0 || remaining <= 0) {
+                return null;
+            }
+            String name = line.substring(0, separator).trim().toLowerCase(Locale.ROOT);
+            String value = line.substring(separator + 1).trim();
+            boolean unsafeValue = value.chars().anyMatch(character ->
+                    character < 0x20 && character != '\t' || character == 0x7f);
+            if (!name.matches("[a-z0-9-]+") || unsafeValue
+                    || headers.putIfAbsent(name, value) != null) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private static byte[] readBody(InputStream input, Map<String, String> headers)
+            throws IOException {
+        if (headers == null || headers.containsKey("transfer-encoding")) {
+            return null;
+        }
+        String declared = headers.get("content-length");
+        if (declared == null) {
+            return new byte[0];
+        }
+        int length;
+        try {
+            length = Integer.parseInt(declared);
+        } catch (NumberFormatException error) {
+            return null;
+        }
+        if (length < 0 || length > MAX_REQUEST_BODY_BYTES) {
+            return null;
+        }
+        byte[] body = input.readNBytes(length);
+        return body.length == length ? body : null;
+    }
+
+    private static String readAsciiLine(InputStream input, int limit) throws IOException {
+        if (limit <= 0) {
+            return null;
+        }
+        StringBuilder line = new StringBuilder();
+        for (int count = 0; count < limit; count++) {
+            int next = input.read();
+            if (next < 0 || next == '\n') {
+                return line.toString();
+            }
+            if (next != '\r') {
+                line.append((char) next);
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public synchronized void close() {
+        if (state == State.STOPPED) {
+            return;
+        }
+        state = State.STOPPING;
+        closeResources();
+        state = State.STOPPED;
+    }
+
+    private void closeResources() {
+        if (socket != null) {
+            try {
+                socket.close();
+            } catch (IOException ignored) {
+            }
+            socket = null;
+        }
+        if (clients != null) {
+            for (Socket client : openClients) {
+                try {
+                    client.close();
+                } catch (IOException ignored) {
+                }
+            }
+            openClients.clear();
+            clients.shutdownNow();
+            try {
+                clients.awaitTermination(5, TimeUnit.SECONDS);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            }
+            clients = null;
+        }
+        acceptThread = null;
+        requestHandler = null;
+    }
+}

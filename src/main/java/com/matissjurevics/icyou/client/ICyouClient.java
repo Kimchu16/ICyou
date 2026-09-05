@@ -5,11 +5,17 @@ import java.util.List;
 
 import com.matissjurevics.icyou.ICyouMod;
 import com.matissjurevics.icyou.client.gui.TerminalGuiScreen;
+import com.matissjurevics.icyou.client.agent.ClientRenderAgentLifecycle;
+import com.matissjurevics.icyou.client.agent.ClientSceneSnapshotLifecycle;
+import com.matissjurevics.icyou.client.agent.ClientSceneDeltaLifecycle;
+import com.matissjurevics.icyou.client.agent.ClientRemoteSceneLifecycle;
+import com.matissjurevics.icyou.client.agent.RemoteOffscreenRenderer;
+import com.matissjurevics.icyou.client.agent.ClientVideoDeliveryLifecycle;
+import com.matissjurevics.icyou.client.agent.ClientAudioSceneLifecycle;
+import com.matissjurevics.icyou.client.agent.ClientWebRtcLifecycle;
 import com.matissjurevics.icyou.client.hud.WirelessHud;
 import com.matissjurevics.icyou.client.render.RttFeedManager;
 import com.matissjurevics.icyou.client.render.ScreenFeedRenderer;
-import com.matissjurevics.icyou.client.stream.StreamConfig;
-import com.matissjurevics.icyou.client.stream.StreamServer;
 import com.matissjurevics.icyou.network.DeviceSnapshotS2CPayload;
 import com.matissjurevics.icyou.network.EnterCameraViewS2CPayload;
 import com.matissjurevics.icyou.network.FeedDataS2CPayload;
@@ -17,7 +23,6 @@ import com.matissjurevics.icyou.registry.ModBlockEntities;
 import com.matissjurevics.icyou.screen.ScreenBlockEntity;
 
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.BlockEntityRendererRegistry;
@@ -38,9 +43,11 @@ public class ICyouClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(FeedDataS2CPayload.ID, (payload, context) -> {
             MinecraftClient client = MinecraftClient.getInstance();
             client.execute(() -> {
-                if (client.world != null && client.world.getBlockEntity(
-                        payload.screenPos()) instanceof ScreenBlockEntity screen) {
-                    screen.updateClientFeed(payload.blips(), payload.camPos(),
+                if (client.world != null
+                        && client.world.getRegistryKey().equals(payload.screen().dimension())
+                        && client.world.getBlockEntity(payload.screen().position())
+                        instanceof ScreenBlockEntity screen) {
+                    screen.updateClientFeed(payload.blips(), payload.camera(),
                             payload.facingId(), payload.index(), payload.count());
                 }
             });
@@ -70,12 +77,14 @@ public class ICyouClient implements ClientModInitializer {
         CameraViewController.init();
         WirelessHud.init();
         ClientTickEvents.END_CLIENT_TICK.register(RttFeedManager::tick);
-
-        StreamConfig.load();
-        if (StreamConfig.enabled) {
-            StreamServer.start();
-        }
-        ClientLifecycleEvents.CLIENT_STOPPING.register(c -> StreamServer.stop());
+        ClientRenderAgentLifecycle.register();
+        ClientSceneSnapshotLifecycle.register();
+        ClientSceneDeltaLifecycle.register();
+        ClientRemoteSceneLifecycle.register();
+        RemoteOffscreenRenderer.register();
+        ClientVideoDeliveryLifecycle.register();
+        ClientAudioSceneLifecycle.register();
+        ClientWebRtcLifecycle.register();
 
         ICyouMod.LOGGER.info("ICyou client initialized");
     }

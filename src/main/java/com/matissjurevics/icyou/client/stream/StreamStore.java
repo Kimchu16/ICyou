@@ -2,19 +2,20 @@ package com.matissjurevics.icyou.client.stream;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.UUID;
 
-/** Latest frame per camera (keyed by {@code cameraPos.asLong()}); thread-safe. */
+/** Latest frame per stable camera UUID; thread-safe. */
 public final class StreamStore {
 
     private StreamStore() {}
 
-    private static final Map<Long, StreamFrame> FRAMES = new ConcurrentHashMap<>();
+    private static final Map<UUID, StreamFrame> FRAMES = new ConcurrentHashMap<>();
 
-    public static void put(long camKey, StreamFrame frame) {
+    public static void put(UUID camKey, StreamFrame frame) {
         FRAMES.put(camKey, frame);
     }
 
-    public static StreamFrame get(long camKey) {
+    public static StreamFrame get(UUID camKey) {
         return FRAMES.get(camKey);
     }
 }
